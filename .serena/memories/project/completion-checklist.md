@@ -1,0 +1,1 @@
+For homepage redesign completion: verify local imports use official /asset files; copy is supported by owner PDF; homepage retains live featured Supabase products and ProductCard/QuickViewModal; verify company, shop, cart, orders routes; check responsive/accessibility/loading/error states; run npm run lint and npm run build; perform browser smoke/visual inspection.

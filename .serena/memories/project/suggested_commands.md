@@ -1,0 +1,1 @@
+From /home/nyx/Downloads/RAWTIX-main: npm run dev (Vite), npm run lint (ESLint), npm run build (production Vite build). Browser smoke test can use localhost dev server. This workspace has no Git repository metadata, so inspect files directly rather than git diff/status.

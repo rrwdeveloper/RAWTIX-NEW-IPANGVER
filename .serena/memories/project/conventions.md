@@ -1,0 +1,1 @@
+Use TypeScript strict typing, @/ aliases, React function components, TanStack file routes via createFileRoute, Tailwind utility classes, and existing Supabase queries/types. Preserve existing commerce routes and error/loading states. Avoid inventing brand claims; use owner PDF and local assets as source of truth. Shared components must be checked for callers before edits.

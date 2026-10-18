@@ -1,0 +1,1 @@
+RAWTIX is a TanStack Start/Vite React storefront for an independent batik fashion label. TypeScript/TSX routes live under src/routes, shared UI under src/components, Supabase integration under src/integrations and src_integrations, local official visual assets under asset/. Homepage combines editorial company profile content with live Supabase products.

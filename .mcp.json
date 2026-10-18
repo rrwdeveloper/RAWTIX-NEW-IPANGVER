@@ -1,0 +1,16 @@
+{
+	"mcpServers": {
+		"serena": {
+			"type": "local",
+			"command": "serena",
+			"args": [
+				"start-mcp-server",
+				"--context=ide",
+				"--project=/home/nyx/Downloads/RAWTIX-main"
+			],
+			"tools": [
+				"*"
+			]
+		}
+	}
+}
