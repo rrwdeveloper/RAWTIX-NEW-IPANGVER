@@ -42,13 +42,14 @@
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
   --color-sidebar-accent: var(--sidebar-accent);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
+   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --font-heading: "Space Grotesk", sans-serif;
   --font-body: "Inter", sans-serif;
   --font-serif: "Playfair Display", Georgia, serif;
   --font-cinzel: "Cinzel", Georgia, serif;
   --font-manrope: "Manrope", sans-serif;
+  --font-script: "Pinyon Script", "Playfair Display", cursive;
 }
 
 /* Dark theme (default) */
@@ -278,5 +279,31 @@
 /* ── Gold/Dragon Accent Glow ─────────────────────── */
 .glow-dragon {
   box-shadow: 0 0 50px rgba(197, 160, 89, 0.15), 0 0 100px rgba(220, 38, 38, 0.1);
+}
+
+.font-script {
+  font-family: var(--font-script);
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-cinzel {
+  font-family: var(--font-cinzel);
+}
+
+/* Postcard stamp effect */
+.postcard-texture {
+  background-color: #f7f6f2;
+  color: #1a1a1a;
+}
+.dark .postcard-texture {
+  background-color: #17181c;
+  color: #f3f4f6;
 }
 
