@@ -30,20 +30,59 @@ function ProductDetailPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const { addItem } = useCart();
 
-  const { data: product, isLoading } = useQuery({
+  const { data: dbProduct, isLoading } = useQuery({
     queryKey: ["product", slug],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*, product_images(*), product_variants(*)")
-        .eq("slug", slug)
-        .single();
-      if (error) throw error;
-      return data as ProductWithRelations;
+      try {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*, product_images(*), product_variants(*)")
+          .eq("slug", slug)
+          .maybeSingle();
+        if (error) return null;
+        return data as ProductWithRelations | null;
+      } catch {
+        return null;
+      }
     },
   });
 
-  if (isLoading) {
+  const catalogueItem = READY_STOCK_CATALOGUE.find((item) => item.slug === slug);
+
+  // Use live product or synthesized catalogue product fallback
+  const product: ProductWithRelations | null = dbProduct || (catalogueItem ? {
+    id: catalogueItem.productId,
+    name: catalogueItem.name,
+    slug: catalogueItem.slug,
+    price: catalogueItem.price,
+    description: catalogueItem.description,
+    status: "active",
+    sort_order: 1,
+    category_id: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    preorder_estimated_date: null,
+    product_images: [
+      {
+        id: `img-${catalogueItem.slug}`,
+        product_id: catalogueItem.productId,
+        url: catalogueItem.image,
+        alt_text: catalogueItem.name,
+        is_primary: true,
+        sort_order: 0,
+        created_at: new Date().toISOString(),
+      },
+    ],
+    product_variants: [
+      { id: `${catalogueItem.slug}-s`, product_id: catalogueItem.productId, size: "S", stock: 8, created_at: new Date().toISOString() },
+      { id: `${catalogueItem.slug}-m`, product_id: catalogueItem.productId, size: "M", stock: 8, created_at: new Date().toISOString() },
+      { id: `${catalogueItem.slug}-l`, product_id: catalogueItem.productId, size: "L", stock: 6, created_at: new Date().toISOString() },
+      { id: `${catalogueItem.slug}-xl`, product_id: catalogueItem.productId, size: "XL", stock: 5, created_at: new Date().toISOString() },
+      { id: `${catalogueItem.slug}-xxl`, product_id: catalogueItem.productId, size: "XXL", stock: 3, created_at: new Date().toISOString() },
+    ],
+  } : null);
+
+  if (isLoading && !product) {
     return (
       <div className="min-h-screen bg-background text-foreground">
         <Header />
@@ -87,7 +126,6 @@ function ProductDetailPage() {
   });
 
   const activeImage = sortedImages[activeImageIndex] ?? sortedImages[0];
-  const catalogueItem = READY_STOCK_CATALOGUE.find((item) => item.slug === product.slug);
   const activeImageUrl = activeImage?.url ?? catalogueItem?.image;
   const variants = product.product_variants ?? [];
   const selectedVariant = variants.find((v) => v.size === selectedSize);

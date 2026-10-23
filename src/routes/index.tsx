@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Star, CheckCircle2, MessageCircle, ChevronRight, Sparkles, Scissors, ShieldCheck, HeartHandshake } from "lucide-react";
+import { ArrowUpRight, Star, CheckCircle2, MessageCircle, ChevronRight, Sparkles, Scissors, ShieldCheck, HeartHandshake, Users } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { QuickViewModal } from "@/components/product/QuickViewModal";
@@ -441,6 +441,179 @@ function HomePage() {
                     </p>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Why Choose RAWTIX? (From PDF Page 10) */}
+            <div className="mt-20 pt-16 border-t border-border">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+                {/* Collar Detail Graphic Frame */}
+                <div className="lg:col-span-5 relative overflow-hidden rounded-xs border border-border bg-neutral-900/40">
+                  <img
+                    src="/brand/08-why-rawtix.png"
+                    alt="Detail Kerah Mandarin dan Motif Batik RAWTIX"
+                    className="w-full h-auto object-cover filter brightness-[0.92] contrast-[1.05]"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20 pointer-events-none" />
+                  <div className="absolute bottom-4 left-4 right-4 text-white">
+                    <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-white/70">
+                      Signature Tailoring Code
+                    </p>
+                    <p className="font-heading text-sm uppercase tracking-wider mt-0.5">
+                      Mandarin Collar &amp; Fireman Clasp Precision
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3 Pillars List */}
+                <div className="lg:col-span-7 space-y-8">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground font-medium">
+                      The Standard of Distinction
+                    </p>
+                    <h3 className="font-heading text-2xl sm:text-4xl uppercase tracking-tight text-foreground mt-2">
+                      Why Choose RAWTIX?
+                    </h3>
+                  </div>
+
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4 p-5 bg-card/60 border border-border/80">
+                      <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
+                        <Sparkles className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
+                          Eksklusivitas &amp; Desain Otentik
+                        </h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-1.5">
+                          Setiap karya dirancang khusus dengan gabungan motif ikonik (Phoenix, Dragon, Mega Mendung) dan fitur kancing <em>fireman clasp</em> yang membedakan RAWTIX dari batik konvensional.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4 p-5 bg-card/60 border border-border/80">
+                      <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
+                        <Scissors className="w-5 h-5 text-foreground" />
+                      </div>
+                      <div>
+                        <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
+                          Fleksibilitas Ukuran &amp; Pola
+                        </h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-1.5">
+                          Layanan <em>made to measure</em> memastikan setiap potongan mengikuti bentuk tubuh dan preferensi gaya pelanggan secara presisi untuk kenyamanan berbusana tingkat tinggi.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-4 p-5 bg-card/60 border border-border/80">
+                      <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
+                        <HeartHandshake className="w-5 h-5 text-foreground" />
+                      </div>
+                      <div>
+                        <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
+                          Pendampingan Konsultasi Acara
+                        </h4>
+                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-1.5">
+                          Kami membantu memberikan rekomendasi paduan warna, motif, dan model yang paling sesuai dengan konsep acara lamaran, perayaan sakral, atau pernikahan Anda.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Special Order Portfolio: Groomsmen Set & Made-to-Measure Womenswear (From PDF Pages 7, 15, 16, 18, 19) */}
+            <div className="mt-20 pt-16 border-t border-border">
+              <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-12 gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground font-medium">
+                    Ceremonial &amp; Bespoke Line
+                  </p>
+                  <h3 className="font-heading text-2xl sm:text-4xl uppercase tracking-tight text-foreground mt-2">
+                    Groomsmen &amp; Womenswear Bespoke
+                  </h3>
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-md">
+                  Solusi busana seragam untuk momen sakral pernikahan dan kreasi siluet busana wanita pesanan khusus.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Card 1: Groomsmen & Grooms Set (PDF Page 16) */}
+                <div className="group relative overflow-hidden border border-border bg-card flex flex-col">
+                  <div className="relative aspect-[16/10] sm:aspect-[16/11] overflow-hidden bg-neutral-900">
+                    <img
+                      src={editorialGroomsmen}
+                      alt="Groomsmen and Groom Set RAWTIX"
+                      className="w-full h-full object-cover object-center group-hover:scale-[1.03] transition-transform duration-700"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute top-4 left-4 bg-black/75 backdrop-blur-xs text-white px-2.5 py-1 text-[10px] tracking-[0.2em] uppercase border border-white/10 flex items-center gap-1.5">
+                      <Users className="w-3 h-3 text-amber-400" /> Bulk &amp; Wedding Set
+                    </div>
+                  </div>
+                  <div className="p-6 sm:p-7 flex flex-col justify-between flex-1">
+                    <div>
+                      <h4 className="font-heading text-lg sm:text-xl uppercase tracking-wider text-foreground">
+                        Group &amp; Event Orders (Groomsmen Sets)
+                      </h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-2.5">
+                        Solusi busana seragam acara bertema modern-heritage. Kami melayani pembuatan seri bulk/group order untuk tim groomsmen, seragam keluarga besar, hingga corporate/VIP event dengan konsistensi kualitas dan estetika yang selaras.
+                      </p>
+                    </div>
+                    <div className="mt-6 pt-5 border-t border-border flex items-center justify-between">
+                      <a
+                        href="https://wa.me/6285719636329?text=Halo%20RAWTIX,%20saya%20ingin%20konsultasi%20pembuatan%20Groomsmen%20Set%20/%20Seragam%20Acara"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" /> Konsultasi Groomsmen <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                      <span className="text-[11px] font-mono text-muted-foreground">Bulk Order</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card 2: Womenswear Made to Measure (PDF Page 15, 18, 19) */}
+                <div className="group relative overflow-hidden border border-border bg-card flex flex-col">
+                  <div className="relative aspect-[16/10] sm:aspect-[16/11] overflow-hidden bg-neutral-900">
+                    <img
+                      src={editorialVintage}
+                      alt="Womenswear Made to Measure RAWTIX"
+                      className="w-full h-full object-cover object-top group-hover:scale-[1.03] transition-transform duration-700"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute top-4 left-4 bg-black/75 backdrop-blur-xs text-white px-2.5 py-1 text-[10px] tracking-[0.2em] uppercase border border-white/10 flex items-center gap-1.5">
+                      <Scissors className="w-3 h-3 text-amber-400" /> Tailored Fit
+                    </div>
+                  </div>
+                  <div className="p-6 sm:p-7 flex flex-col justify-between flex-1">
+                    <div>
+                      <h4 className="font-heading text-lg sm:text-xl uppercase tracking-wider text-foreground">
+                        Womenswear Made to Measure
+                      </h4>
+                      <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mt-2.5">
+                        Layanan busana batik yang disesuaikan secara khusus bagi wanita dan pasangan. Menghadirkan siluet blus kerah Shanghai kontemporer, set peplum, dan detail kancing <em>fireman clasp</em> untuk prosesi lamaran dan perayaan prestisius.
+                      </p>
+                    </div>
+                    <div className="mt-6 pt-5 border-t border-border flex items-center justify-between">
+                      <a
+                        href="https://wa.me/6285719636329?text=Halo%20RAWTIX,%20saya%20ingin%20konsultasi%20mengenai%20Womenswear%20/%20Bespoke%20Batik"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.2em] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                      >
+                        <MessageCircle className="w-3.5 h-3.5" /> Konsultasi Busana Wanita <ArrowUpRight className="w-3.5 h-3.5" />
+                      </a>
+                      <span className="text-[11px] font-mono text-muted-foreground">Custom Fit</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
