@@ -1048,15 +1048,16 @@ export const removeAdminRole = createServerFn({ method: "POST" })
     return { success: true };
   });
 
-// ─── Owner Direct Admin Staff Management (Create & Delete) ───
-const createAdminStaffSchema = z.object({
+// ─── Owner Direct Team Management (Full CRUD for Admin & Owner) ───
+const createTeamUserSchema = z.object({
   token: z.string().min(1),
   email: z.string().email("Format email tidak valid"),
   password: z.string().min(6, "Password minimal 6 karakter"),
+  role: z.enum(["owner", "admin"]).default("admin"),
 });
 
-export const createAdminStaff = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => createAdminStaffSchema.parse(input))
+export const createTeamUser = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => createTeamUserSchema.parse(input))
   .handler(async ({ data }) => {
     const { client, user, role } = await assertOwner(data.token);
     const serviceClient = createServiceClient();
@@ -1089,42 +1090,104 @@ export const createAdminStaff = createServerFn({ method: "POST" })
     const { error: roleErr } = await serviceClient.from("user_roles").upsert(
       {
         user_id: targetUserId,
-        role: "admin",
+        role: data.role,
       },
       { onConflict: "user_id,role" }
     );
 
-    if (roleErr) throw new Error("Gagal menetapkan peran admin: " + roleErr.message);
+    if (roleErr) throw new Error("Gagal menetapkan peran pengguna: " + roleErr.message);
 
+    const roleName = data.role === "owner" ? "Owner" : "Admin";
     await logUserAction(
       client,
       user,
       role,
-      "CREATE_ADMIN",
-      `Staf Admin: ${data.email}`,
-      `Owner menambahkan staf Admin baru (${data.email}) dan memberikan hak akses operasional toko.`,
-      { target_email: data.email, target_user_id: targetUserId }
+      "CREATE_USER",
+      `Tambah Pengguna: ${data.email}`,
+      `Owner menambahkan akun pengguna baru (${data.email}) dengan peran ${roleName}.`,
+      { target_email: data.email, target_user_id: targetUserId, assigned_role: data.role }
     );
 
-    return { success: true, email: data.email, userId: targetUserId };
+    return { success: true, email: data.email, userId: targetUserId, role: data.role };
   });
 
-const deleteAdminStaffSchema = z.object({
+// Backward compatible alias
+export const createAdminStaff = createTeamUser;
+
+const updateTeamUserSchema = z.object({
+  token: z.string().min(1),
+  userId: z.string().uuid(),
+  roleId: z.string().uuid(),
+  newEmail: z.string().email("Format email tidak valid").optional(),
+  newPassword: z.string().min(6, "Password minimal 6 karakter").optional(),
+  newRole: z.enum(["owner", "admin"]).optional(),
+});
+
+export const updateTeamUser = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => updateTeamUserSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { client, user, role } = await assertOwner(data.token);
+    const serviceClient = createServiceClient();
+    if (!serviceClient) throw new Error("Service role Supabase belum terkonfigurasi");
+
+    // 1. Update Auth credentials (Email / Password) if provided
+    const authUpdates: Record<string, any> = {};
+    if (data.newEmail) authUpdates.email = data.newEmail;
+    if (data.newPassword) authUpdates.password = data.newPassword;
+
+    if (Object.keys(authUpdates).length > 0) {
+      authUpdates.email_confirm = true;
+      const { error: authErr } = await serviceClient.auth.admin.updateUserById(
+        data.userId,
+        authUpdates
+      );
+      if (authErr) throw new Error("Gagal memperbarui data login: " + authErr.message);
+    }
+
+    // 2. Update Role if provided
+    if (data.newRole) {
+      const { error: roleErr } = await serviceClient
+        .from("user_roles")
+        .update({ role: data.newRole })
+        .eq("id", data.roleId);
+      if (roleErr) throw new Error("Gagal memperbarui hak akses peran: " + roleErr.message);
+    }
+
+    const updatedRoleText = data.newRole ? ` (Peran diubah ke ${data.newRole})` : "";
+    await logUserAction(
+      client,
+      user,
+      role,
+      "UPDATE_USER",
+      `Edit Pengguna: ${data.newEmail || data.userId}`,
+      `Owner memperbarui profil/kredensial pengguna (${data.newEmail || data.userId})${updatedRoleText}.`,
+      {
+        target_user_id: data.userId,
+        updated_email: data.newEmail,
+        updated_role: data.newRole,
+        password_changed: !!data.newPassword,
+      }
+    );
+
+    return { success: true };
+  });
+
+const deleteTeamUserSchema = z.object({
   token: z.string().min(1),
   roleId: z.string().uuid(),
   userId: z.string().uuid(),
   email: z.string().optional(),
 });
 
-export const deleteAdminStaff = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => deleteAdminStaffSchema.parse(input))
+export const deleteTeamUser = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => deleteTeamUserSchema.parse(input))
   .handler(async ({ data }) => {
     const { client, user, role } = await assertOwner(data.token);
     const serviceClient = createServiceClient();
 
-    // Prevent deleting owner themselves
+    // Prevent deleting own logged in account
     if (data.userId === user.id) {
-      throw new Error("Tidak dapat mencabut akses atau menghapus akun Owner sendiri");
+      throw new Error("Tidak dapat menghapus akun Anda sendiri saat ini sedang aktif digunakan");
     }
 
     // Delete role from user_roles
@@ -1148,14 +1211,17 @@ export const deleteAdminStaff = createServerFn({ method: "POST" })
       client,
       user,
       role,
-      "REMOVE_ADMIN",
-      `Hapus Staf: ${data.email || data.userId}`,
-      `Owner mencabut hak akses dan menghapus staf Admin (${data.email || data.userId}).`,
+      "REMOVE_USER",
+      `Hapus Pengguna: ${data.email || data.userId}`,
+      `Owner menghapus pengguna (${data.email || data.userId}) dan mencabut seluruh hak aksesnya.`,
       { target_user_id: data.userId, target_email: data.email, role_id: data.roleId }
     );
 
     return { success: true };
   });
+
+// Backward compatible alias
+export const deleteAdminStaff = deleteTeamUser;
 
 // ─── Site Settings (Owner Exclusive Customizer) ───
 const getSiteSettingsSchema = z.object({

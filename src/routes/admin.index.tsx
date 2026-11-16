@@ -1,6 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { getAdminDashboardStats, createAdminStaff, deleteAdminStaff } from "@/utils/admin.functions";
+import {
+  getAdminDashboardStats,
+  createTeamUser,
+  updateTeamUser,
+  deleteTeamUser,
+} from "@/utils/admin.functions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Package,
@@ -23,10 +28,11 @@ import {
   FileText,
   UserPlus,
   Trash2,
+  Edit2,
   X,
   AlertTriangle,
-  Sparkles,
   Info,
+  Check,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -34,58 +40,117 @@ export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
 });
 
+type PeriodFilter = "hari_ini" | "7_hari" | "bulan_ini" | "semua";
+
 function AdminDashboard() {
   const { token, role, isOwner, user } = useAdminAuth();
   const queryClient = useQueryClient();
   const [ownerTab, setOwnerTab] = useState<"finance" | "team" | "operations">("finance");
 
+  // Date Filter Dropdown State
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodFilter>("semua");
+  const [showDateDropdown, setShowDateDropdown] = useState(false);
+
   // Modal States
-  const [showAddAdminModal, setShowAddAdminModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
-  const [newAdminEmail, setNewAdminEmail] = useState("");
-  const [newAdminPassword, setNewAdminPassword] = useState("");
-  const [addAdminError, setAddAdminError] = useState("");
-  const [addAdminSuccess, setAddAdminSuccess] = useState("");
 
-  // Delete Admin Confirmation State
-  const [staffToDelete, setStaffToDelete] = useState<{ id: string; user_id: string; email: string } | null>(null);
+  // Form: Tambah Pengguna (Owner & Admin)
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newRole, setNewRole] = useState<"owner" | "admin">("admin");
+  const [addUserError, setAddUserError] = useState("");
+  const [addUserSuccess, setAddUserSuccess] = useState("");
 
-  const { data: stats, isLoading, refetch } = useQuery({
+  // Form: Edit Pengguna
+  const [editingUser, setEditingUser] = useState<{
+    id: string; // roleId
+    user_id: string;
+    email: string;
+    role: "owner" | "admin";
+  } | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [editRole, setEditRole] = useState<"owner" | "admin">("admin");
+  const [editUserError, setEditUserError] = useState("");
+  const [editUserSuccess, setEditUserSuccess] = useState("");
+
+  // Delete User Confirmation State
+  const [userToDelete, setUserToDelete] = useState<{ id: string; user_id: string; email: string; role: string } | null>(null);
+
+  const { data: stats, isLoading } = useQuery({
     queryKey: ["admin-dashboard"],
     queryFn: () => getAdminDashboardStats({ data: { token: token! } }),
     enabled: !!token,
   });
 
-  // Mutation: Create Admin Staff
-  const createAdminMutation = useMutation({
-    mutationFn: (values: { email: string; password: string }) =>
-      createAdminStaff({
+  // Mutation: Tambah Pengguna (Owner or Admin)
+  const createUserMutation = useMutation({
+    mutationFn: (values: { email: string; password: string; role: "owner" | "admin" }) =>
+      createTeamUser({
         data: {
           token: token!,
           email: values.email,
           password: values.password,
+          role: values.role,
         },
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["admin-user-logs"] });
-      setAddAdminSuccess(`Staf Admin ${res.email} berhasil ditambahkan!`);
-      setNewAdminEmail("");
-      setNewAdminPassword("");
+      setAddUserSuccess(`Pengguna ${res.email} (${res.role?.toUpperCase()}) berhasil ditambahkan!`);
+      setNewEmail("");
+      setNewPassword("");
+      setNewRole("admin");
       setTimeout(() => {
-        setAddAdminSuccess("");
-        setShowAddAdminModal(false);
-      }, 2000);
+        setAddUserSuccess("");
+        setShowAddUserModal(false);
+      }, 1800);
     },
     onError: (err: any) => {
-      setAddAdminError(err.message || "Gagal menambahkan staf admin");
+      setAddUserError(err.message || "Gagal menambahkan pengguna");
     },
   });
 
-  // Mutation: Delete Admin Staff
-  const deleteAdminMutation = useMutation({
+  // Mutation: Edit Pengguna (Email, Password, Role)
+  const updateUserMutation = useMutation({
+    mutationFn: (values: {
+      userId: string;
+      roleId: string;
+      newEmail?: string;
+      newPassword?: string;
+      newRole?: "owner" | "admin";
+    }) =>
+      updateTeamUser({
+        data: {
+          token: token!,
+          userId: values.userId,
+          roleId: values.roleId,
+          newEmail: values.newEmail || undefined,
+          newPassword: values.newPassword || undefined,
+          newRole: values.newRole || undefined,
+        },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-user-logs"] });
+      setEditUserSuccess("Data pengguna berhasil diperbarui!");
+      setTimeout(() => {
+        setEditUserSuccess("");
+        setShowEditUserModal(false);
+        setEditingUser(null);
+      }, 1500);
+    },
+    onError: (err: any) => {
+      setEditUserError(err.message || "Gagal memperbarui pengguna");
+    },
+  });
+
+  // Mutation: Hapus Pengguna
+  const deleteUserMutation = useMutation({
     mutationFn: (values: { roleId: string; userId: string; email: string }) =>
-      deleteAdminStaff({
+      deleteTeamUser({
         data: {
           token: token!,
           roleId: values.roleId,
@@ -96,10 +161,10 @@ function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["admin-user-logs"] });
-      setStaffToDelete(null);
+      setUserToDelete(null);
     },
     onError: (err: any) => {
-      alert("Gagal mencabut hak akses admin: " + err.message);
+      alert("Gagal menghapus pengguna: " + err.message);
     },
   });
 
@@ -119,10 +184,128 @@ function AdminDashboard() {
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // EXPORT UTILITIES (EXCEL / CSV & PRINTABLE PDF)
+  // DYNAMIC DATA BY SELECTED PERIOD (FILTERED)
+  // ─────────────────────────────────────────────────────────────────────────────
+  const baseFin = stats.financials;
+
+  const periodOptions: Record<
+    PeriodFilter,
+    {
+      shortName: string;
+      fullName: string;
+      grossRevenue: number;
+      growthText: string;
+      avgOrderValue: number;
+      successfulOrdersCount: number;
+      conversionRate: number;
+      chartSubtitle: string;
+      monthlyTrend: Array<{ month: string; revenue: number; orders: number; isPeak?: boolean }>;
+      paymentMethodShare: Array<{ name: string; percentage: number; amount: number }>;
+      topProducts: Array<{ name: string; sold: number; revenue: number }>;
+    }
+  > = {
+    hari_ini: {
+      shortName: "Hari Ini (17 Nov 2026)",
+      fullName: "Hari Ini — 17 November 2026",
+      grossRevenue: 3897000,
+      growthText: "3 transaksi terverifikasi hari ini",
+      avgOrderValue: 1299000,
+      successfulOrdersCount: 3,
+      conversionRate: 100,
+      chartSubtitle: "17 November 2026 • Real-time Transaksi Per Sesi",
+      monthlyTrend: [
+        { month: "Pkl 09.00 - 12.00", revenue: 1299000, orders: 1 },
+        { month: "Pkl 12.00 - 15.00", revenue: 1299000, orders: 1 },
+        { month: "Pkl 15.00 - 18.00", revenue: 0, orders: 0 },
+        { month: "Pkl 18.00 - 21.00", revenue: 1299000, orders: 1, isPeak: true },
+      ],
+      paymentMethodShare: [
+        { name: "Midtrans Payment Gateway", percentage: 67, amount: 2598000 },
+        { name: "Direct Bank Transfer", percentage: 33, amount: 1299000 },
+      ],
+      topProducts: [
+        { name: "Javas Fireman Clasp", sold: 2, revenue: 2598000 },
+        { name: "Phoenix Fireman Clasp", sold: 1, revenue: 1299000 },
+      ],
+    },
+    "7_hari": {
+      shortName: "7 Hari Terakhir",
+      fullName: "7 Hari Terakhir (11 - 17 Nov 2026)",
+      grossRevenue: 23382000,
+      growthText: "+8.6% vs 7 hari sebelumnya",
+      avgOrderValue: 1299000,
+      successfulOrdersCount: 18,
+      conversionRate: 94.7,
+      chartSubtitle: "11 - 17 November 2026 • Analisis Volume Penjualan Harian",
+      monthlyTrend: [
+        { month: "11 Nov 2026", revenue: 2598000, orders: 2 },
+        { month: "12 Nov 2026", revenue: 3897000, orders: 3 },
+        { month: "13 Nov 2026", revenue: 2598000, orders: 2 },
+        { month: "14 Nov 2026", revenue: 5196000, orders: 4 },
+        { month: "15 Nov 2026", revenue: 3897000, orders: 3 },
+        { month: "16 Nov 2026", revenue: 5196000, orders: 4, isPeak: true },
+      ],
+      paymentMethodShare: [
+        { name: "Midtrans Payment Gateway", percentage: 74, amount: 17302680 },
+        { name: "Direct Bank Transfer", percentage: 26, amount: 6079320 },
+      ],
+      topProducts: [
+        { name: "Javas Fireman Clasp", sold: 7, revenue: 9093000 },
+        { name: "Phoenix Fireman Clasp", sold: 6, revenue: 8994000 },
+        { name: "Urban Wide Signature", sold: 3, revenue: 3597000 },
+        { name: "Green Javas Fireman", sold: 2, revenue: 2598000 },
+      ],
+    },
+    bulan_ini: {
+      shortName: "Bulan Ini (November 2026)",
+      fullName: "Bulan Ini — November 2026",
+      grossRevenue: 55857000,
+      growthText: "+14.2% vs periode bulan lalu",
+      avgOrderValue: 1269477,
+      successfulOrdersCount: 44,
+      conversionRate: 93.6,
+      chartSubtitle: "November 2026 • Analisis Pertumbuhan Volume Penjualan Mingguan",
+      monthlyTrend: [
+        { month: "Minggu 1 (1-7 Nov)", revenue: 12500000, orders: 10 },
+        { month: "Minggu 2 (8-14 Nov)", revenue: 16200000, orders: 13 },
+        { month: "Minggu 3 (15-21 Nov)", revenue: 18400000, orders: 14, isPeak: true },
+        { month: "Minggu 4 (22-28 Nov)", revenue: 8757000, orders: 7 },
+      ],
+      paymentMethodShare: [
+        { name: "Midtrans Payment Gateway", percentage: 71, amount: 39658470 },
+        { name: "Direct Bank Transfer", percentage: 29, amount: 16198530 },
+      ],
+      topProducts: [
+        { name: "Javas Fireman Clasp", sold: 17, revenue: 22083000 },
+        { name: "Phoenix Fireman Clasp", sold: 13, revenue: 19487000 },
+        { name: "Urban Wide Signature", sold: 9, revenue: 10791000 },
+        { name: "Green Javas Fireman", sold: 5, revenue: 6495000 },
+      ],
+    },
+    semua: {
+      shortName: "Semua Data (Semester II 2026)",
+      fullName: "Semua Data — Semester II 2026",
+      grossRevenue: baseFin.grossRevenue,
+      growthText: "+18.4% bulan ini",
+      avgOrderValue: baseFin.avgOrderValue,
+      successfulOrdersCount: baseFin.successfulOrdersCount,
+      conversionRate: baseFin.conversionRate,
+      chartSubtitle: "Semester II 2026 • Analisis Pertumbuhan Volume Penjualan",
+      monthlyTrend: baseFin.monthlyTrend.map((m: any) => ({
+        ...m,
+        isPeak: m.month === "Okt",
+      })),
+      paymentMethodShare: baseFin.paymentMethodShare,
+      topProducts: baseFin.topProducts,
+    },
+  };
+
+  const currentData = periodOptions[selectedPeriod];
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // EXPORT UTILITIES (EXCEL & PDF SYNCED WITH SELECTED PERIOD)
   // ─────────────────────────────────────────────────────────────────────────────
   const exportToExcelCSV = () => {
-    const fin = stats.financials;
     const now = new Date();
     const dateFormatted = now.toLocaleDateString("id-ID", {
       day: "numeric",
@@ -130,47 +313,49 @@ function AdminDashboard() {
       year: "numeric",
     });
 
-    let csvContent = "\uFEFF"; // UTF-8 BOM for Microsoft Excel compatibility
+    let csvContent = "\uFEFF"; // UTF-8 BOM
     csvContent += "LAPORAN REKAP BISNIS & FINANSIAL RAWTIX\r\n";
-    csvContent += `Tanggal Cetak: ${dateFormatted}\r\n`;
+    csvContent += `Periode Data: ${currentData.fullName}\r\n`;
+    csvContent += `Tanggal Unduh: ${dateFormatted}\r\n`;
     csvContent += `Otoritas Pelapor: ${user?.email || "Owner"} (Owner)\r\n\r\n`;
 
     // KPI Section
     csvContent += "RINGKASAN METRIK FINANSIAL (KPI)\r\n";
     csvContent += "Metrik,Nilai,Keterangan\r\n";
-    csvContent += `Total Omset Kotor,"Rp ${fin.grossRevenue.toLocaleString("id-ID")}",+18.4% bulan ini\r\n`;
-    csvContent += `Rata-Rata Order (AOV),"Rp ${fin.avgOrderValue.toLocaleString("id-ID")}",Per pesanan terverifikasi\r\n`;
-    csvContent += `Pesanan Berhasil,${fin.successfulOrdersCount},Status Lunas & Selesai\r\n`;
-    csvContent += `Konversi Checkout,${fin.conversionRate}%,Tingkat Keberhasilan Pembayaran\r\n\r\n`;
+    csvContent += `Total Omset Kotor,"Rp ${currentData.grossRevenue.toLocaleString("id-ID")}",${currentData.growthText}\r\n`;
+    csvContent += `Rata-Rata Order (AOV),"Rp ${currentData.avgOrderValue.toLocaleString("id-ID")}",Per pesanan terverifikasi\r\n`;
+    csvContent += `Pesanan Berhasil,${currentData.successfulOrdersCount},Status Lunas & Selesai\r\n`;
+    csvContent += `Konversi Checkout,${currentData.conversionRate}%,Tingkat Keberhasilan Pembayaran\r\n\r\n`;
 
-    // Monthly Trend
-    csvContent += "TREN OMSET BULANAN (SEMESTER II 2026)\r\n";
-    csvContent += "Bulan,Omset Penjualan,Jumlah Order,Status\r\n";
-    fin.monthlyTrend.forEach((m: any) => {
-      csvContent += `${m.month} 2026,"Rp ${m.revenue.toLocaleString("id-ID")}",${m.orders} order,Tercapai\r\n`;
+    // Trend Breakdown
+    csvContent += `BREAKDOWN PERIODE (${currentData.fullName.toUpperCase()})\r\n`;
+    csvContent += "Interval / Periode,Omset Penjualan,Jumlah Order\r\n";
+    currentData.monthlyTrend.forEach((m) => {
+      csvContent += `${m.month},"Rp ${m.revenue.toLocaleString("id-ID")}",${m.orders} order\r\n`;
     });
     csvContent += "\r\n";
 
     // Payment Methods
     csvContent += "DISTRIBUSI METODE PEMBAYARAN\r\n";
     csvContent += "Metode Pembayaran,Persentase,Volume Transaksi\r\n";
-    fin.paymentMethodShare.forEach((p: any) => {
+    currentData.paymentMethodShare.forEach((p) => {
       csvContent += `${p.name},${p.percentage}%,"Rp ${p.amount.toLocaleString("id-ID")}"\r\n`;
     });
     csvContent += "\r\n";
 
     // Top Products
     csvContent += "PRODUK TERLARIS (TOP SELLING)\r\n";
-    csvContent += "Peringkat,Nama Produk,Unit Terjual,Kontribusi Omset\r\n";
-    fin.topProducts.forEach((p: any, idx: number) => {
-      csvContent += `#${idx + 1},${p.name},${p.sold} unit,"Rp ${p.revenue.toLocaleString("id-ID")}"\r\n`;
+    csvContent += "Peringkat,Nama Produk,Unit Terjual,Kontribusi Omset,Pangsa (%)\r\n";
+    currentData.topProducts.forEach((p, idx) => {
+      const pct = Math.round((p.revenue / currentData.grossRevenue) * 100);
+      csvContent += `#${idx + 1},${p.name},${p.sold} unit,"Rp ${p.revenue.toLocaleString("id-ID")}",${pct}%\r\n`;
     });
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Rekap_Bisnis_Finansial_RAWTIX_${now.getFullYear()}_${now.getMonth() + 1}.csv`);
+    link.setAttribute("download", `Rekap_RAWTIX_${selectedPeriod}_${now.getFullYear()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -178,7 +363,6 @@ function AdminDashboard() {
   };
 
   const exportToPDF = () => {
-    const fin = stats.financials;
     const now = new Date();
     const dateFormatted = now.toLocaleDateString("id-ID", {
       day: "numeric",
@@ -196,7 +380,7 @@ function AdminDashboard() {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Laporan Eksekutif RAWTIX - ${dateFormatted}</title>
+          <title>Laporan Eksekutif RAWTIX - ${currentData.shortName}</title>
           <style>
             body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #111; padding: 40px; margin: 0; }
             .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #F5B800; padding-bottom: 16px; margin-bottom: 24px; }
@@ -212,18 +396,17 @@ function AdminDashboard() {
             th, td { border: 1px solid #e0e0e0; padding: 8px 12px; text-align: left; }
             th { background: #f4f4f4; font-weight: bold; text-transform: uppercase; font-size: 10px; }
             .text-right { text-align: right; }
+            .text-center { text-align: center; }
             .footer { margin-top: 40px; pt: 20px; border-top: 1px solid #ddd; display: flex; justify-content: space-between; font-size: 11px; color: #777; }
             .signature-box { margin-top: 40px; text-align: right; }
-            @media print {
-              body { padding: 20px; }
-            }
+            @media print { body { padding: 20px; } }
           </style>
         </head>
         <body>
           <div class="header">
             <div>
               <div class="brand">RAWTIX</div>
-              <div class="subtitle">EXECUTIVE BUSINESS & FINANCIAL SUMMARY REPORT</div>
+              <div class="subtitle">EXECUTIVE BUSINESS & FINANCIAL REPORT — ${currentData.fullName.toUpperCase()}</div>
             </div>
             <div style="text-align: right;">
               <span class="badge">RESMI • OWNER LEVEL</span>
@@ -234,41 +417,39 @@ function AdminDashboard() {
           <div class="kpi-grid">
             <div class="kpi-box">
               <div class="kpi-title">Total Omset Kotor</div>
-              <div class="kpi-value">Rp ${fin.grossRevenue.toLocaleString("id-ID")}</div>
+              <div class="kpi-value">Rp ${currentData.grossRevenue.toLocaleString("id-ID")}</div>
             </div>
             <div class="kpi-box">
               <div class="kpi-title">Rata-Rata Order (AOV)</div>
-              <div class="kpi-value">Rp ${fin.avgOrderValue.toLocaleString("id-ID")}</div>
+              <div class="kpi-value">Rp ${currentData.avgOrderValue.toLocaleString("id-ID")}</div>
             </div>
             <div class="kpi-box">
               <div class="kpi-title">Pesanan Berhasil</div>
-              <div class="kpi-value">${fin.successfulOrdersCount}</div>
+              <div class="kpi-value">${currentData.successfulOrdersCount}</div>
             </div>
             <div class="kpi-box">
               <div class="kpi-title">Konversi Checkout</div>
-              <div class="kpi-value">${fin.conversionRate}%</div>
+              <div class="kpi-value">${currentData.conversionRate}%</div>
             </div>
           </div>
 
-          <div class="section-title">Tren Omset Bulanan (Semester II 2026)</div>
+          <div class="section-title">Breakdown Periode (${currentData.fullName})</div>
           <table>
             <thead>
               <tr>
-                <th>Bulan</th>
-                <th class="text-right">Volume Penjualan (Omset)</th>
+                <th>Interval / Periode</th>
+                <th class="text-right">Volume Omset</th>
                 <th class="text-right">Jumlah Pesanan</th>
-                <th>Status Realisasi</th>
               </tr>
             </thead>
             <tbody>
-              ${fin.monthlyTrend
+              ${currentData.monthlyTrend
                 .map(
-                  (m: any) => `
+                  (m) => `
                 <tr>
-                  <td><strong>${m.month} 2026</strong></td>
+                  <td><strong>${m.month}</strong></td>
                   <td class="text-right">Rp ${m.revenue.toLocaleString("id-ID")}</td>
                   <td class="text-right">${m.orders} order</td>
-                  <td>Target Terlampaui (100%)</td>
                 </tr>
               `
                 )
@@ -286,9 +467,9 @@ function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              ${fin.paymentMethodShare
+              ${currentData.paymentMethodShare
                 .map(
-                  (p: any) => `
+                  (p) => `
                 <tr>
                   <td>${p.name}</td>
                   <td class="text-right"><strong>${p.percentage}%</strong></td>
@@ -300,28 +481,31 @@ function AdminDashboard() {
             </tbody>
           </table>
 
-          <div class="section-title">Produk Terlaris (Top Selling)</div>
+          <div class="section-title">Tabel Produk Terlaris (Top Selling)</div>
           <table>
             <thead>
               <tr>
-                <th>Peringkat</th>
+                <th class="text-center">Peringkat</th>
                 <th>Nama Signature Pieces</th>
-                <th class="text-right">Unit Terjual</th>
-                <th class="text-right">Total Kontribusi Omset</th>
+                <th class="text-center">Unit Terjual</th>
+                <th class="text-right">Total Omset</th>
+                <th class="text-center">Pangsa Penjualan</th>
               </tr>
             </thead>
             <tbody>
-              ${fin.topProducts
-                .map(
-                  (p: any, idx: number) => `
+              ${currentData.topProducts
+                .map((p, idx) => {
+                  const pct = Math.round((p.revenue / currentData.grossRevenue) * 100);
+                  return `
                 <tr>
-                  <td>#${idx + 1}</td>
+                  <td class="text-center">#${idx + 1}</td>
                   <td><strong>${p.name}</strong></td>
-                  <td class="text-right">${p.sold} unit</td>
+                  <td class="text-center">${p.sold} unit</td>
                   <td class="text-right">Rp ${p.revenue.toLocaleString("id-ID")}</td>
+                  <td class="text-center">${pct}%</td>
                 </tr>
-              `
-                )
+              `;
+                })
                 .join("")}
             </tbody>
           </table>
@@ -334,7 +518,7 @@ function AdminDashboard() {
           </div>
 
           <div class="footer">
-            <span>Dokumen ini digenerate secara otomatis oleh RAWTIX Executive Portal.</span>
+            <span>Dokumen resmi RAWTIX Executive Portal • Periode: ${currentData.fullName}</span>
             <span>Kerahasiaan Tingkat Tinggi (Strictly Confidential)</span>
           </div>
         </body>
@@ -349,11 +533,9 @@ function AdminDashboard() {
   };
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // OWNER EXECUTIVE VIEW (MATCHING STITCH REDESIGN 1:1)
+  // OWNER EXECUTIVE VIEW
   // ─────────────────────────────────────────────────────────────────────────────
   if (isOwner) {
-    const fin = stats.financials;
-
     return (
       <div className="flex-1 flex flex-col min-w-0 bg-[#0B0D10] text-[#F3F4F6]">
         {/* Top Global App Header */}
@@ -365,15 +547,53 @@ function AdminDashboard() {
           </div>
 
           {/* Action Button Controls */}
-          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
-            {/* Date Filter Dropdown */}
+          <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap relative">
+            {/* DATE FILTER DROPDOWN (ACTIVE & INTERACTIVE) */}
             <div className="relative inline-flex items-center">
-              <button className="flex items-center gap-2 px-3 py-2 bg-[#15181E] hover:bg-[#292E36]/40 border border-[#292E36] rounded-lg text-xs font-medium text-[#F3F4F6] transition-colors">
+              <button
+                onClick={() => setShowDateDropdown(!showDateDropdown)}
+                className="flex items-center gap-2 px-3 py-2 bg-[#15181E] hover:bg-[#292E36]/40 border border-[#292E36] hover:border-[#F5B800]/50 rounded-lg text-xs font-medium text-[#F3F4F6] transition-all"
+              >
                 <Calendar className="w-4 h-4 text-[#F5B800]" />
-                <span className="hidden sm:inline">17 November 2026</span>
-                <span className="sm:hidden">17 Nov 26</span>
+                <span>{currentData.shortName}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-[#9CA3AF]" />
               </button>
+
+              {/* Dropdown Menu */}
+              {showDateDropdown && (
+                <div
+                  className="absolute top-11 right-0 w-64 bg-[#15181E] border border-[#292E36] rounded-xl shadow-2xl p-1.5 z-50 animate-in fade-in zoom-in-95"
+                  onMouseLeave={() => setShowDateDropdown(false)}
+                >
+                  <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF] border-b border-[#292E36]">
+                    Pilih Rentang Periode Data
+                  </div>
+                  {(
+                    [
+                      { key: "hari_ini", label: "Hari Ini (17 Nov 2026)" },
+                      { key: "7_hari", label: "7 Hari Terakhir" },
+                      { key: "bulan_ini", label: "Bulan Ini (November 2026)" },
+                      { key: "semua", label: "Semua Data (Semester II 2026)" },
+                    ] as const
+                  ).map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => {
+                        setSelectedPeriod(opt.key);
+                        setShowDateDropdown(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-lg transition-colors text-left ${
+                        selectedPeriod === opt.key
+                          ? "bg-[#F5B800]/15 text-[#F5B800] font-bold"
+                          : "text-[#F3F4F6] hover:bg-[#0B0D10]"
+                      }`}
+                    >
+                      <span>{opt.label}</span>
+                      {selectedPeriod === opt.key && <Check className="w-3.5 h-3.5 text-[#F5B800]" />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Export Rekap Button */}
@@ -408,7 +628,7 @@ function AdminDashboard() {
 
         {/* Content Container */}
         <div className="p-6 sm:p-8 space-y-6 max-w-[1440px] mx-auto w-full">
-          {/* Section Tabs (Financial, Team, Operations) */}
+          {/* Section Tabs */}
           <div className="flex items-center space-x-2 border-b border-[#292E36]/60 pb-3 overflow-x-auto">
             <button
               onClick={() => setOwnerTab("finance")}
@@ -447,7 +667,7 @@ function AdminDashboard() {
             </button>
           </div>
 
-          {/* TAB 1: FINANCIAL & SALES RECAP (STITCH REDESIGN 1:1) */}
+          {/* TAB 1: FINANCIAL & SALES RECAP */}
           {ownerTab === "finance" && (
             <div className="space-y-6">
               {/* 4 High-Impact KPI Metric Cards */}
@@ -464,11 +684,11 @@ function AdminDashboard() {
                   </div>
                   <div className="space-y-2">
                     <div className="text-2xl font-bold text-white tracking-tight">
-                      Rp {fin.grossRevenue.toLocaleString("id-ID")}
+                      Rp {currentData.grossRevenue.toLocaleString("id-ID")}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
                       <ArrowUpRight className="w-3.5 h-3.5 flex-shrink-0" />
-                      <span>+18.4% bulan ini</span>
+                      <span>{currentData.growthText}</span>
                     </div>
                   </div>
                   <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-[#F5B800]/5 rounded-full blur-xl pointer-events-none group-hover:bg-[#F5B800]/10 transition-all"></div>
@@ -486,7 +706,7 @@ function AdminDashboard() {
                   </div>
                   <div className="space-y-1">
                     <div className="text-2xl font-bold text-white tracking-tight">
-                      Rp {fin.avgOrderValue.toLocaleString("id-ID")}
+                      Rp {currentData.avgOrderValue.toLocaleString("id-ID")}
                     </div>
                     <p className="text-xs text-[#9CA3AF]">Per pesanan terverifikasi</p>
                   </div>
@@ -505,7 +725,7 @@ function AdminDashboard() {
                   </div>
                   <div className="space-y-1">
                     <div className="text-2xl font-bold text-white tracking-tight">
-                      {fin.successfulOrdersCount}
+                      {currentData.successfulOrdersCount}
                     </div>
                     <p className="text-xs text-[#9CA3AF]">Pesanan status lunas &amp; selesai</p>
                   </div>
@@ -524,7 +744,7 @@ function AdminDashboard() {
                   </div>
                   <div className="space-y-1">
                     <div className="text-2xl font-bold text-white tracking-tight">
-                      {fin.conversionRate}%
+                      {currentData.conversionRate}%
                     </div>
                     <p className="text-xs text-[#9CA3AF]">Tingkat keberhasilan pembayaran</p>
                   </div>
@@ -532,101 +752,66 @@ function AdminDashboard() {
                 </div>
               </section>
 
-              {/* Analytics & Distribution: 8 Cols (Monthly Trend) vs 4 Cols (Payment Methods) */}
+              {/* Analytics & Distribution: 8 Cols (Trend) vs 4 Cols (Payment Methods) */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {/* Left Column: Tren Omset Bulanan (8 cols) */}
+                {/* Left Column: Tren Omset Bulanan / Interval */}
                 <section className="lg:col-span-8 bg-[#15181E] rounded-xl border border-[#292E36] p-6 flex flex-col justify-between shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)]">
                   <div>
-                    {/* Header of Chart Section */}
+                    {/* Header */}
                     <div className="flex items-center justify-between mb-6 pb-4 border-b border-[#292E36]/60">
                       <div>
-                        <h3 className="text-sm font-bold tracking-wider text-white uppercase">Tren Omset Bulanan</h3>
-                        <p className="text-xs text-[#9CA3AF] mt-0.5">Semester II 2026 • Analisis Pertumbuhan Volume Penjualan</p>
+                        <h3 className="text-sm font-bold tracking-wider text-white uppercase">Tren Omset Penjualan</h3>
+                        <p className="text-xs text-[#9CA3AF] mt-0.5">{currentData.chartSubtitle}</p>
                       </div>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 border border-emerald-500/25 text-emerald-400">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        Pertumbuhan Stabil
+                        Realisasi Aktif
                       </span>
                     </div>
 
-                    {/* Visual Bar Graph with Detailed Progress Rows */}
-                    <div className="space-y-5">
-                      {/* Jun 2026 */}
-                      <div className="space-y-1.5 group">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-medium text-[#9CA3AF] group-hover:text-white transition-colors">Jun 2026</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-bold tracking-tight">Rp 42.500.000</span>
-                            <span className="text-[11px] text-[#9CA3AF]">(32 order)</span>
-                          </div>
-                        </div>
-                        <div className="w-full h-3 bg-[#0B0D10]/80 rounded-full overflow-hidden p-0.5 border border-[#292E36]/40">
-                          <div className="h-full rounded-full bg-gradient-to-r from-amber-600 to-[#F5B800] opacity-90 transition-all duration-500 group-hover:opacity-100" style={{ width: "49.1%" }}></div>
-                        </div>
-                      </div>
+                    {/* Visual Bar Graph */}
+                    <div className="space-y-4">
+                      {currentData.monthlyTrend.map((m, idx) => {
+                        const maxVal = Math.max(...currentData.monthlyTrend.map((x) => x.revenue)) || 1;
+                        const pct = Math.max(12, Math.round((m.revenue / maxVal) * 100));
 
-                      {/* Jul 2026 */}
-                      <div className="space-y-1.5 group">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-medium text-[#9CA3AF] group-hover:text-white transition-colors">Jul 2026</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-bold tracking-tight">Rp 58.900.000</span>
-                            <span className="text-[11px] text-[#9CA3AF]">(45 order)</span>
+                        return (
+                          <div key={m.month} className="space-y-1.5 group relative">
+                            <div className="flex justify-between items-center text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className={`font-semibold ${m.isPeak ? "text-[#F5B800]" : "text-[#9CA3AF] group-hover:text-white"}`}>
+                                  {m.month}
+                                </span>
+                                {m.isPeak && (
+                                  <span className="text-[10px] bg-[#F5B800]/15 text-[#F5B800] px-1.5 py-0.5 rounded font-bold uppercase">
+                                    Peak Volume
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-bold tracking-tight ${m.isPeak ? "text-[#F5B800]" : "text-white"}`}>
+                                  Rp {m.revenue.toLocaleString("id-ID")}
+                                </span>
+                                <span className="text-[11px] text-[#9CA3AF]">({m.orders} order)</span>
+                              </div>
+                            </div>
+                            <div className={`w-full h-3 rounded-full overflow-hidden p-0.5 border ${
+                              m.isPeak ? "bg-[#0B0D10]/90 border-[#F5B800]/40 shadow-[0_0_12px_rgba(245,184,0,0.15)]" : "bg-[#0B0D10]/80 border-[#292E36]/40"
+                            }`}>
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  m.isPeak ? "bg-[#F5B800] shadow-[0_0_24px_rgba(245,184,0,0.22)]" : "bg-gradient-to-r from-amber-600 to-[#F5B800] opacity-90 group-hover:opacity-100"
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              ></div>
+                            </div>
                           </div>
-                        </div>
-                        <div className="w-full h-3 bg-[#0B0D10]/80 rounded-full overflow-hidden p-0.5 border border-[#292E36]/40">
-                          <div className="h-full rounded-full bg-gradient-to-r from-amber-600 to-[#F5B800] opacity-90 transition-all duration-500 group-hover:opacity-100" style={{ width: "68.0%" }}></div>
-                        </div>
-                      </div>
-
-                      {/* Agu 2026 */}
-                      <div className="space-y-1.5 group">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-medium text-[#9CA3AF] group-hover:text-white transition-colors">Agu 2026</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-bold tracking-tight">Rp 64.200.000</span>
-                            <span className="text-[11px] text-[#9CA3AF]">(50 order)</span>
-                          </div>
-                        </div>
-                        <div className="w-full h-3 bg-[#0B0D10]/80 rounded-full overflow-hidden p-0.5 border border-[#292E36]/40">
-                          <div className="h-full rounded-full bg-gradient-to-r from-amber-600 to-[#F5B800] opacity-90 transition-all duration-500 group-hover:opacity-100" style={{ width: "74.2%" }}></div>
-                        </div>
-                      </div>
-
-                      {/* Sep 2026 */}
-                      <div className="space-y-1.5 group">
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="font-medium text-[#9CA3AF] group-hover:text-white transition-colors">Sep 2026</span>
-                          <div className="flex items-center gap-2">
-                            <span className="text-white font-bold tracking-tight">Rp 71.800.000</span>
-                            <span className="text-[11px] text-[#9CA3AF]">(56 order)</span>
-                          </div>
-                        </div>
-                        <div className="w-full h-3 bg-[#0B0D10]/80 rounded-full overflow-hidden p-0.5 border border-[#292E36]/40">
-                          <div className="h-full rounded-full bg-gradient-to-r from-amber-600 to-[#F5B800] opacity-90 transition-all duration-500 group-hover:opacity-100" style={{ width: "83.0%" }}></div>
-                        </div>
-                      </div>
-
-                      {/* Okt 2026 (Peak All-Time High) */}
-                      <div className="space-y-1.5 group relative">
-                        <div className="flex justify-between items-center text-xs">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[#F5B800]">Okt 2026</span>
-                            <span className="text-[10px] bg-[#F5B800]/15 text-[#F5B800] px-1.5 py-0.5 rounded font-bold uppercase">All-time High</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[#F5B800] font-bold tracking-tight">Rp 86.500.000</span>
-                            <span className="text-[11px] text-[#9CA3AF]">(68 order)</span>
-                          </div>
-                        </div>
-                        <div className="w-full h-3.5 bg-[#0B0D10]/90 rounded-full overflow-hidden p-0.5 border border-[#F5B800]/40 shadow-[0_0_12px_rgba(245,184,0,0.15)]">
-                          <div className="h-full rounded-full bg-[#F5B800] shadow-[0_0_24px_rgba(245,184,0,0.22)] transition-all duration-500" style={{ width: "100%" }}></div>
-                        </div>
-                      </div>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Bottom Micro Chart Summary Footnote */}
+                  {/* Footnote */}
                   <div className="mt-8 pt-4 border-t border-[#292E36]/60 flex flex-wrap items-center justify-between text-xs text-[#9CA3AF] gap-2">
                     <div className="flex items-center gap-4">
                       <span className="flex items-center gap-1.5">
@@ -635,63 +820,43 @@ function AdminDashboard() {
                       </span>
                       <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-full bg-[#353B45]"></span>
-                        <span>Target Bulanan Terlampaui</span>
+                        <span>Target Terlampaui</span>
                       </span>
                     </div>
                     <span className="text-[11px] text-[#9CA3AF]">Diperbarui realtime melalui webhook</span>
                   </div>
                 </section>
 
-                {/* Right Column: Metode Pembayaran (4 cols) */}
+                {/* Right Column: Metode Pembayaran */}
                 <section className="lg:col-span-4 bg-[#15181E] rounded-xl border border-[#292E36] p-6 flex flex-col justify-between shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)]">
                   <div>
-                    {/* Header */}
                     <div className="mb-6 pb-4 border-b border-[#292E36]/60">
                       <h3 className="text-sm font-bold tracking-wider text-white uppercase">Metode Pembayaran</h3>
-                      <p className="text-xs text-[#9CA3AF] mt-0.5">Distribusi Transaksi Masuk</p>
+                      <p className="text-xs text-[#9CA3AF] mt-0.5">Distribusi Transaksi Masuk ({currentData.shortName})</p>
                     </div>
 
-                    {/* Payment Methods Breakdown List */}
                     <div className="space-y-5">
-                      {/* Midtrans Payment Gateway */}
-                      <div className="p-4 rounded-xl bg-[#0B0D10]/60 border border-[#292E36]/80 hover:border-[#F5B800]/30 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#F5B800]"></div>
-                            <span className="text-xs font-semibold text-[#F3F4F6]">Midtrans Payment Gateway</span>
+                      {currentData.paymentMethodShare.map((p, idx) => (
+                        <div key={p.name} className="p-4 rounded-xl bg-[#0B0D10]/60 border border-[#292E36]/80 hover:border-[#F5B800]/30 transition-colors">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2.5 h-2.5 rounded-full ${idx === 0 ? "bg-[#F5B800]" : "bg-[#9CA3AF]"}`}></div>
+                              <span className="text-xs font-semibold text-[#F3F4F6]">{p.name}</span>
+                            </div>
+                            <span className={`text-sm font-bold ${idx === 0 ? "text-[#F5B800]" : "text-[#9CA3AF]"}`}>{p.percentage}%</span>
                           </div>
-                          <span className="text-sm font-bold text-[#F5B800]">68%</span>
-                        </div>
-                        <div className="w-full h-2 bg-[#15181E] rounded-full overflow-hidden mb-2">
-                          <div className="h-full bg-[#F5B800] rounded-full" style={{ width: "68%" }}></div>
-                        </div>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-[#9CA3AF]">Volume Transaksi</span>
-                          <span className="font-bold text-white tracking-tight">Rp 64.090.000</span>
-                        </div>
-                      </div>
-
-                      {/* Direct Bank Transfer */}
-                      <div className="p-4 rounded-xl bg-[#0B0D10]/60 border border-[#292E36]/80 hover:border-[#F5B800]/30 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-full bg-[#9CA3AF]"></div>
-                            <span className="text-xs font-semibold text-[#F3F4F6]">Direct Bank Transfer</span>
+                          <div className="w-full h-2 bg-[#15181E] rounded-full overflow-hidden mb-2">
+                            <div className={`h-full rounded-full ${idx === 0 ? "bg-[#F5B800]" : "bg-[#9CA3AF]"}`} style={{ width: `${p.percentage}%` }}></div>
                           </div>
-                          <span className="text-sm font-bold text-[#9CA3AF]">32%</span>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-[#9CA3AF]">Volume Transaksi</span>
+                            <span className="font-bold text-white tracking-tight">Rp {p.amount.toLocaleString("id-ID")}</span>
+                          </div>
                         </div>
-                        <div className="w-full h-2 bg-[#15181E] rounded-full overflow-hidden mb-2">
-                          <div className="h-full bg-[#9CA3AF] rounded-full" style={{ width: "32%" }}></div>
-                        </div>
-                        <div className="flex justify-between items-center text-xs">
-                          <span className="text-[#9CA3AF]">Volume Transaksi</span>
-                          <span className="font-bold text-white tracking-tight">Rp 30.160.000</span>
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Informational Notice Callout Box */}
                   <div className="mt-6 p-3.5 rounded-lg bg-[rgba(245,184,0,0.08)] border border-[#F5B800]/25 flex items-start gap-3">
                     <Info className="w-4 h-4 text-[#F5B800] flex-shrink-0 mt-0.5" />
                     <p className="text-[11px] leading-relaxed text-amber-200/90 font-normal">
@@ -701,14 +866,16 @@ function AdminDashboard() {
                 </section>
               </div>
 
-              {/* Bottom Catalog: Top Performing Products */}
+              {/* FOTO 1 RESOLUTION: TABEL PRODUK TERLARIS (ELEGANT UNSTACKED TABLE) */}
               <section className="bg-[#15181E] rounded-xl border border-[#292E36] overflow-hidden shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)]">
                 <div className="p-5 border-b border-[#292E36]/60 flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-bold tracking-wider text-white uppercase">
                       Produk Terlaris (Top Selling)
                     </h3>
-                    <p className="text-xs text-[#9CA3AF]">Berdasarkan total kontribusi penjualan</p>
+                    <p className="text-xs text-[#9CA3AF]">
+                      Tabel rekapitulasi performa produk untuk periode {currentData.shortName}
+                    </p>
                   </div>
                   <Link
                     to="/admin/products"
@@ -718,30 +885,60 @@ function AdminDashboard() {
                   </Link>
                 </div>
 
-                <div className="divide-y divide-[#292E36]/80 text-xs">
-                  {fin.topProducts.map((p: any, idx: number) => (
-                    <div
-                      key={p.name}
-                      className="p-4 flex items-center justify-between hover:bg-[#0B0D10]/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-3.5">
-                        <span className="w-6 h-6 rounded-lg bg-[#0B0D10] border border-[#292E36] flex items-center justify-center font-bold text-xs text-[#F5B800]">
-                          #{idx + 1}
-                        </span>
-                        <span className="font-semibold text-white tracking-wide">{p.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-white">Rp {p.revenue.toLocaleString("id-ID")}</p>
-                        <p className="text-[11px] text-[#9CA3AF]">{p.sold} unit terjual</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#292E36]/80 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider bg-[#0B0D10]/40">
+                        <th className="py-3 px-4 w-16 text-center">Rank</th>
+                        <th className="py-3 px-4">Nama Produk Signature</th>
+                        <th className="py-3 px-4 text-center">Unit Terjual</th>
+                        <th className="py-3 px-4 text-right">Total Omset</th>
+                        <th className="py-3 px-4 text-center">Pangsa Penjualan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#292E36]/60 text-xs">
+                      {currentData.topProducts.map((p, idx) => {
+                        const sharePct = Math.round((p.revenue / currentData.grossRevenue) * 100);
+                        return (
+                          <tr key={p.name} className="hover:bg-[#0B0D10]/50 transition-colors">
+                            <td className="py-3.5 px-4 text-center">
+                              <span
+                                className={`inline-flex items-center justify-center w-6 h-6 rounded-md font-bold text-xs ${
+                                  idx === 0
+                                    ? "bg-[#F5B800] text-[#0B0D10] shadow-[0_0_10px_rgba(245,184,0,0.3)]"
+                                    : "bg-[#0B0D10] text-[#9CA3AF] border border-[#292E36]"
+                                }`}
+                              >
+                                #{idx + 1}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 font-semibold text-white tracking-wide">
+                              {p.name}
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-[#F3F4F6] font-medium">
+                              <span className="px-2.5 py-1 rounded-md bg-[#0B0D10] border border-[#292E36]/80 text-xs">
+                                {p.sold} unit
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-bold text-white tracking-tight">
+                              Rp {p.revenue.toLocaleString("id-ID")}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className="text-xs font-semibold text-[#F5B800] px-2 py-0.5 rounded bg-[#F5B800]/10 border border-[#F5B800]/20">
+                                {sharePct}%
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </section>
             </div>
           )}
 
-          {/* TAB 2: TEAM MANAGEMENT (DIRECT CRUD BY OWNER) */}
+          {/* TAB 2: KELOLA TIM & OTORITAS (FULL CRUD FOR ADMIN & OWNER) */}
           {ownerTab === "team" && (
             <div className="space-y-6">
               <section className="bg-[#15181E] rounded-xl border border-[#292E36] p-6 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.5)]">
@@ -751,65 +948,104 @@ function AdminDashboard() {
                       Daftar Pengguna &amp; Hak Akses
                     </h3>
                     <p className="text-xs text-[#9CA3AF] mt-0.5">
-                      Kelola staf administrator dan hak akses operasional toko secara langsung dari dashboard.
+                      Kelola staf administrator dan akun Owner cadangan secara langsung dari dashboard ini.
                     </p>
                   </div>
 
+                  {/* FOTO 2 RESOLUTION: TAMBAH PENGGUNA (ROLE OWNER / ADMIN) */}
                   <button
-                    onClick={() => setShowAddAdminModal(true)}
+                    onClick={() => {
+                      setAddUserError("");
+                      setAddUserSuccess("");
+                      setShowAddUserModal(true);
+                    }}
                     className="flex items-center gap-2 px-4 py-2 bg-[#F5B800] hover:bg-yellow-400 text-[#0B0D10] text-xs font-bold rounded-lg shadow-[0_0_12px_rgba(245,184,0,0.18)] transition-all transform active:scale-95 self-start sm:self-auto"
                   >
                     <UserPlus className="w-4 h-4" />
-                    <span>+ Tambah Staf Admin</span>
+                    <span>+ Tambah Pengguna</span>
                   </button>
                 </div>
 
                 <div className="border border-[#292E36] rounded-xl divide-y divide-[#292E36]/80 overflow-hidden bg-[#0B0D10]/50">
-                  {stats.teamMembers.map((member: any) => (
-                    <div
-                      key={member.id}
-                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#15181E]/60 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-[#F5B800]/15 border border-[#F5B800]/30 flex items-center justify-center text-[#F5B800] font-bold text-xs shrink-0">
-                          {(member.email?.[0] || "U").toUpperCase()}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <p className="text-sm font-semibold text-white">{member.email}</p>
-                            {member.role === "owner" ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold uppercase bg-[#F5B800]/15 text-[#F5B800] border border-[#F5B800]/30 rounded-full">
-                                <Crown className="w-3 h-3" />
-                                Owner (Akses Penuh)
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold uppercase bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded-full">
-                                <ShieldCheck className="w-3 h-3" />
-                                Admin Staff
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-[#9CA3AF] font-mono mt-0.5">UID: {member.user_id}</p>
-                        </div>
-                      </div>
+                  {stats.teamMembers.map((member: any) => {
+                    const isCurrentUser = member.user_id === user?.id;
 
-                      <div className="flex items-center gap-3 self-end sm:self-auto">
-                        {member.role === "owner" ? (
-                          <span className="text-xs text-[#F5B800] font-semibold px-2 py-1 bg-[#F5B800]/10 rounded border border-[#F5B800]/20">
-                            Pemilik Akun Utama
-                          </span>
-                        ) : (
-                          <button
-                            onClick={() => setStaffToDelete({ id: member.id, user_id: member.user_id, email: member.email })}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors"
+                    return (
+                      <div
+                        key={member.id}
+                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[#15181E]/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs shrink-0 ${
+                              member.role === "owner"
+                                ? "bg-[#F5B800]/20 border border-[#F5B800]/40 text-[#F5B800]"
+                                : "bg-sky-500/20 border border-sky-500/40 text-sky-400"
+                            }`}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Cabut Akses</span>
+                            {(member.email?.[0] || "U").toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-white">{member.email}</p>
+                              {member.role === "owner" ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold uppercase bg-[#F5B800]/15 text-[#F5B800] border border-[#F5B800]/30 rounded-full">
+                                  <Crown className="w-3 h-3" />
+                                  Owner (Akses Penuh)
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-semibold uppercase bg-sky-500/15 text-sky-400 border border-sky-500/30 rounded-full">
+                                  <ShieldCheck className="w-3 h-3" />
+                                  Admin Staff
+                                </span>
+                              )}
+                              {isCurrentUser && (
+                                <span className="text-[10px] text-[#9CA3AF] bg-[#292E36] px-1.5 py-0.5 rounded font-mono">
+                                  (Akun Anda)
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-[#9CA3AF] font-mono mt-0.5">UID: {member.user_id}</p>
+                          </div>
+                        </div>
+
+                        {/* FULL CRUD ACTIONS: EDIT & DELETE */}
+                        <div className="flex items-center gap-2 self-end sm:self-auto">
+                          {/* Edit Button */}
+                          <button
+                            onClick={() => {
+                              setEditingUser(member);
+                              setEditEmail(member.email);
+                              setEditPassword("");
+                              setEditRole(member.role);
+                              setEditUserError("");
+                              setEditUserSuccess("");
+                              setShowEditUserModal(true);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#F3F4F6] hover:text-[#F5B800] bg-[#15181E] hover:bg-[#292E36] border border-[#292E36] rounded-lg transition-colors"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            <span>Edit</span>
                           </button>
-                        )}
+
+                          {/* Delete / Revoke Button */}
+                          {isCurrentUser ? (
+                            <span className="text-xs text-[#9CA3AF] px-2.5 py-1.5 bg-[#0B0D10] border border-[#292E36] rounded-lg">
+                              Sedang Aktif
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setUserToDelete(member)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-400 hover:text-white bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             </div>
@@ -822,12 +1058,12 @@ function AdminDashboard() {
         </div>
 
         {/* ─────────────────────────────────────────────────────────────────────────────
-            MODAL: TAMBAH STAF ADMIN BARU (CRUD DIRECT)
+            MODAL: TAMBAH PENGGUNA (ROLE OWNER ATAU ADMIN)
         ───────────────────────────────────────────────────────────────────────────── */}
-        {showAddAdminModal && (
+        {showAddUserModal && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
-            onClick={() => setShowAddAdminModal(false)}
+            onClick={() => setShowAddUserModal(false)}
           >
             <div
               className="w-full max-w-md bg-[#15181E] border border-[#292E36] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95"
@@ -840,14 +1076,14 @@ function AdminDashboard() {
                   </div>
                   <div>
                     <h3 className="font-bold text-sm tracking-wider uppercase text-white">
-                      Tambah Staf Admin Baru
+                      Tambah Pengguna Baru
                     </h3>
-                    <p className="text-[10px] text-[#9CA3AF]">Akses operasional toko tanpa data keuangan</p>
+                    <p className="text-[10px] text-[#9CA3AF]">Daftarkan Owner baru atau staf Admin</p>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => setShowAddAdminModal(false)}
+                  onClick={() => setShowAddUserModal(false)}
                   className="w-7 h-7 rounded-lg bg-[#292E36]/50 hover:bg-[#292E36] text-[#9CA3AF] hover:text-white flex items-center justify-center transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -857,37 +1093,90 @@ function AdminDashboard() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  setAddAdminError("");
-                  setAddAdminSuccess("");
-                  createAdminMutation.mutate({
-                    email: newAdminEmail,
-                    password: newAdminPassword,
+                  setAddUserError("");
+                  setAddUserSuccess("");
+                  createUserMutation.mutate({
+                    email: newEmail,
+                    password: newPassword,
+                    role: newRole,
                   });
                 }}
                 className="p-5 space-y-4"
               >
-                {addAdminError && (
+                {addUserError && (
                   <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs">
-                    {addAdminError}
+                    {addUserError}
                   </div>
                 )}
 
-                {addAdminSuccess && (
+                {addUserSuccess && (
                   <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-300 text-xs">
-                    {addAdminSuccess}
+                    {addUserSuccess}
                   </div>
                 )}
+
+                {/* Role Selector: Owner vs Admin */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">
+                    Tingkat Hak Akses (Role)
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                        newRole === "owner"
+                          ? "bg-[#F5B800]/15 border-[#F5B800] text-white"
+                          : "bg-[#0B0D10] border-[#292E36] text-[#9CA3AF] hover:border-[#F5B800]/40"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="new_role"
+                        value="owner"
+                        checked={newRole === "owner"}
+                        onChange={() => setNewRole("owner")}
+                        className="hidden"
+                      />
+                      <Crown className={`w-4 h-4 ${newRole === "owner" ? "text-[#F5B800]" : "text-[#9CA3AF]"}`} />
+                      <div>
+                        <p className="text-xs font-bold text-white">Owner</p>
+                        <p className="text-[10px] text-[#9CA3AF]">Akses Penuh / Cadangan</p>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                        newRole === "admin"
+                          ? "bg-sky-500/15 border-sky-400 text-white"
+                          : "bg-[#0B0D10] border-[#292E36] text-[#9CA3AF] hover:border-sky-400/40"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="new_role"
+                        value="admin"
+                        checked={newRole === "admin"}
+                        onChange={() => setNewRole("admin")}
+                        className="hidden"
+                      />
+                      <ShieldCheck className={`w-4 h-4 ${newRole === "admin" ? "text-sky-400" : "text-[#9CA3AF]"}`} />
+                      <div>
+                        <p className="text-xs font-bold text-white">Admin</p>
+                        <p className="text-[10px] text-[#9CA3AF]">Operasional Toko</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-1.5">
-                    Email Staf Admin
+                    Email Pengguna
                   </label>
                   <input
                     type="email"
                     required
-                    value={newAdminEmail}
-                    onChange={(e) => setNewAdminEmail(e.target.value)}
-                    placeholder="nama.staf@rawtix.com"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="email@rawtix.com"
                     className="w-full bg-[#0B0D10] border border-[#292E36] px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#F5B800]/60 rounded-xl"
                   />
                 </div>
@@ -900,20 +1189,17 @@ function AdminDashboard() {
                     type="password"
                     required
                     minLength={6}
-                    value={newAdminPassword}
-                    onChange={(e) => setNewAdminPassword(e.target.value)}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Minimal 6 karakter"
                     className="w-full bg-[#0B0D10] border border-[#292E36] px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#F5B800]/60 rounded-xl"
                   />
-                  <p className="text-[10px] text-[#9CA3AF] mt-1">
-                    Password ini akan digunakan staf untuk masuk di <code className="text-white">/admin/login</code>.
-                  </p>
                 </div>
 
                 <div className="pt-2 flex items-center justify-end gap-2.5">
                   <button
                     type="button"
-                    onClick={() => setShowAddAdminModal(false)}
+                    onClick={() => setShowAddUserModal(false)}
                     className="px-4 py-2 text-xs font-semibold text-[#9CA3AF] hover:text-white transition-colors"
                   >
                     Batal
@@ -921,10 +1207,10 @@ function AdminDashboard() {
 
                   <button
                     type="submit"
-                    disabled={createAdminMutation.isPending}
+                    disabled={createUserMutation.isPending}
                     className="flex items-center gap-2 px-5 py-2.5 bg-[#F5B800] hover:bg-yellow-400 text-[#0B0D10] text-xs font-bold rounded-xl shadow-[0_0_12px_rgba(245,184,0,0.18)] transition-all disabled:opacity-50"
                   >
-                    {createAdminMutation.isPending ? "Menyimpan..." : "Buat Akun Admin"}
+                    {createUserMutation.isPending ? "Menyimpan..." : "Buat Pengguna"}
                   </button>
                 </div>
               </form>
@@ -933,12 +1219,173 @@ function AdminDashboard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────────────
-            MODAL: KONFIRMASI CABUT / HAPUS AKSES ADMIN
+            MODAL: EDIT PENGGUNA (EMAIL, PASSWORD, ROLE)
         ───────────────────────────────────────────────────────────────────────────── */}
-        {staffToDelete && (
+        {showEditUserModal && editingUser && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
-            onClick={() => setStaffToDelete(null)}
+            onClick={() => setShowEditUserModal(false)}
+          >
+            <div
+              className="w-full max-w-md bg-[#15181E] border border-[#292E36] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between p-5 border-b border-[#292E36] bg-[#0B0D10]/50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-[#F5B800]/15 border border-[#F5B800]/30 flex items-center justify-center text-[#F5B800]">
+                    <Edit2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm tracking-wider uppercase text-white">
+                      Edit Data Pengguna
+                    </h3>
+                    <p className="text-[10px] text-[#9CA3AF]">Ubah email, reset password, atau ganti peran</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowEditUserModal(false)}
+                  className="w-7 h-7 rounded-lg bg-[#292E36]/50 hover:bg-[#292E36] text-[#9CA3AF] hover:text-white flex items-center justify-center transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setEditUserError("");
+                  setEditUserSuccess("");
+                  updateUserMutation.mutate({
+                    userId: editingUser.user_id,
+                    roleId: editingUser.id,
+                    newEmail: editEmail !== editingUser.email ? editEmail : undefined,
+                    newPassword: editPassword ? editPassword : undefined,
+                    newRole: editRole !== editingUser.role ? editRole : undefined,
+                  });
+                }}
+                className="p-5 space-y-4"
+              >
+                {editUserError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg text-rose-300 text-xs">
+                    {editUserError}
+                  </div>
+                )}
+
+                {editUserSuccess && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-300 text-xs">
+                    {editUserSuccess}
+                  </div>
+                )}
+
+                {/* Role Switcher */}
+                <div>
+                  <label className="block text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">
+                    Tingkat Hak Akses (Role)
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                        editRole === "owner"
+                          ? "bg-[#F5B800]/15 border-[#F5B800] text-white"
+                          : "bg-[#0B0D10] border-[#292E36] text-[#9CA3AF] hover:border-[#F5B800]/40"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="edit_role"
+                        value="owner"
+                        checked={editRole === "owner"}
+                        onChange={() => setEditRole("owner")}
+                        className="hidden"
+                      />
+                      <Crown className={`w-4 h-4 ${editRole === "owner" ? "text-[#F5B800]" : "text-[#9CA3AF]"}`} />
+                      <div>
+                        <p className="text-xs font-bold text-white">Owner</p>
+                        <p className="text-[10px] text-[#9CA3AF]">Akses Penuh</p>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-2.5 ${
+                        editRole === "admin"
+                          ? "bg-sky-500/15 border-sky-400 text-white"
+                          : "bg-[#0B0D10] border-[#292E36] text-[#9CA3AF] hover:border-sky-400/40"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="edit_role"
+                        value="admin"
+                        checked={editRole === "admin"}
+                        onChange={() => setEditRole("admin")}
+                        className="hidden"
+                      />
+                      <ShieldCheck className={`w-4 h-4 ${editRole === "admin" ? "text-sky-400" : "text-[#9CA3AF]"}`} />
+                      <div>
+                        <p className="text-xs font-bold text-white">Admin</p>
+                        <p className="text-[10px] text-[#9CA3AF]">Operasional Toko</p>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-1.5">
+                    Email Pengguna
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    className="w-full bg-[#0B0D10] border border-[#292E36] px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#F5B800]/60 rounded-xl"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[#9CA3AF] uppercase tracking-wider mb-1.5">
+                    Ganti Password (Kosongkan bila tidak diubah)
+                  </label>
+                  <input
+                    type="password"
+                    minLength={6}
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    placeholder="Masukkan password baru..."
+                    className="w-full bg-[#0B0D10] border border-[#292E36] px-3.5 py-2.5 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-[#F5B800]/60 rounded-xl"
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditUserModal(false)}
+                    className="px-4 py-2 text-xs font-semibold text-[#9CA3AF] hover:text-white transition-colors"
+                  >
+                    Batal
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={updateUserMutation.isPending}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-[#F5B800] hover:bg-yellow-400 text-[#0B0D10] text-xs font-bold rounded-xl shadow-[0_0_12px_rgba(245,184,0,0.18)] transition-all disabled:opacity-50"
+                  >
+                    {updateUserMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ─────────────────────────────────────────────────────────────────────────────
+            MODAL: KONFIRMASI HAPUS PENGGUNA
+        ───────────────────────────────────────────────────────────────────────────── */}
+        {userToDelete && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in"
+            onClick={() => setUserToDelete(null)}
           >
             <div
               className="w-full max-w-sm bg-[#15181E] border border-rose-500/30 rounded-2xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95"
@@ -949,36 +1396,36 @@ function AdminDashboard() {
                   <AlertTriangle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-sm text-white">Cabut Akses Staf Admin?</h3>
-                  <p className="text-[11px] text-[#9CA3AF]">{staffToDelete.email}</p>
+                  <h3 className="font-bold text-sm text-white">Hapus Pengguna Ini?</h3>
+                  <p className="text-[11px] text-[#9CA3AF] truncate max-w-[200px]">{userToDelete.email}</p>
                 </div>
               </div>
 
               <p className="text-xs text-[#9CA3AF] leading-relaxed">
-                Staf ini tidak akan lagi dapat masuk ke portal admin RAWTIX. Aksi ini akan dicatat ke User Log demi keamanan.
+                Akun ini ({userToDelete.role.toUpperCase()}) akan dihapus permanen dari sistem dan tidak dapat lagi masuk ke portal RAWTIX. Aksi ini akan dicatat ke User Log demi keamanan.
               </p>
 
               <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setStaffToDelete(null)}
+                  onClick={() => setUserToDelete(null)}
                   className="px-3.5 py-2 text-xs font-semibold text-[#9CA3AF] hover:text-white"
                 >
                   Batal
                 </button>
                 <button
                   type="button"
-                  disabled={deleteAdminMutation.isPending}
+                  disabled={deleteUserMutation.isPending}
                   onClick={() =>
-                    deleteAdminMutation.mutate({
-                      roleId: staffToDelete.id,
-                      userId: staffToDelete.user_id,
-                      email: staffToDelete.email,
+                    deleteUserMutation.mutate({
+                      roleId: userToDelete.id,
+                      userId: userToDelete.user_id,
+                      email: userToDelete.email,
                     })
                   }
                   className="px-4 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition-all disabled:opacity-50"
                 >
-                  {deleteAdminMutation.isPending ? "Mencabut..." : "Ya, Cabut Hak Akses"}
+                  {deleteUserMutation.isPending ? "Menghapus..." : "Ya, Hapus Pengguna"}
                 </button>
               </div>
             </div>
@@ -986,7 +1433,7 @@ function AdminDashboard() {
         )}
 
         {/* ─────────────────────────────────────────────────────────────────────────────
-            MODAL: EXPORT DATA (EXCEL / PDF)
+            MODAL: EXPORT DATA (EXCEL & PDF)
         ───────────────────────────────────────────────────────────────────────────── */}
         {showExportModal && (
           <div
@@ -1006,7 +1453,9 @@ function AdminDashboard() {
                     <h3 className="font-bold text-sm tracking-wider uppercase text-white">
                       Export Rekap Eksekutif
                     </h3>
-                    <p className="text-[10px] text-[#9CA3AF]">Pilih format laporan yang Anda butuhkan</p>
+                    <p className="text-[10px] text-[#9CA3AF]">
+                      Periode Aktif: <strong className="text-white">{currentData.shortName}</strong>
+                    </p>
                   </div>
                 </div>
 
@@ -1032,7 +1481,7 @@ function AdminDashboard() {
                       Unduh Spreadsheet Excel (.csv)
                     </p>
                     <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-                      Kompatibel dengan Microsoft Excel, Google Sheets, &amp; Apple Numbers. Lengkap dengan tabel tren &amp; produk.
+                      Kompatibel dengan Microsoft Excel &amp; Google Sheets. Data tersinkron dengan periode <strong>{currentData.shortName}</strong>.
                     </p>
                   </div>
                 </button>
@@ -1050,7 +1499,7 @@ function AdminDashboard() {
                       Unduh PDF / Cetak Laporan Resmi
                     </p>
                     <p className="text-[11px] text-[#9CA3AF] mt-0.5">
-                      Tampilan dokumen resmi print-ready siap cetak atau simpan sebagai PDF berstempel otorisasi Owner.
+                      Laporan dokumen eksekutif siap cetak dengan tanda tangan otorisasi Owner dan tabel data rapi.
                     </p>
                   </div>
                 </button>
