@@ -9,10 +9,9 @@ import {
   Menu,
   X,
   Truck,
-  Crown,
-  ShieldCheck,
   Palette,
   ClipboardList,
+  MoreVertical,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -32,6 +31,7 @@ function AdminLayoutGuard() {
   const { isAuthenticated, isLoading, logout, user, role, isOwner } = useAdminAuth();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const baseNavItems = [
     { to: "/admin" as const, label: "Dashboard", icon: LayoutDashboard, exact: true },
@@ -66,8 +66,15 @@ function AdminLayoutGuard() {
 
   if (isLoading || !isAuthenticated) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#09090b]">
-        <div className="text-zinc-400 text-xs tracking-widest uppercase animate-pulse">Memuat Sesi...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#0B0D10]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#F5B800] to-yellow-600 flex items-center justify-center shadow-[0_0_12px_rgba(245,184,0,0.25)] animate-pulse">
+            <span className="text-[#0B0D10] font-black text-xs">RX</span>
+          </div>
+          <div className="text-[#9CA3AF] text-xs tracking-widest uppercase animate-pulse">
+            Memuat Executive Portal...
+          </div>
+        </div>
       </div>
     );
   }
@@ -77,126 +84,157 @@ function AdminLayoutGuard() {
     navigate({ to: "/admin/login" });
   };
 
+  const initialLetter = (user?.email?.[0] || (role === "owner" ? "P" : "A")).toUpperCase();
+
   return (
-    <div className="flex min-h-screen bg-[#09090b] text-zinc-100 selection:bg-amber-400 selection:text-black">
-      {/* Desktop sleek luxury sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/95 shrink-0 shadow-2xl">
-        {/* Brand header */}
-        <div className="p-5 border-b border-zinc-800/80 bg-black/40">
-          <Link to="/admin" className="block group">
-            <span className="font-heading text-lg font-bold tracking-[0.25em] uppercase text-white group-hover:text-amber-400 transition-colors">
-              RAWTIX
-            </span>
-            <div className="flex items-center justify-between mt-1">
-              <span className="text-[10px] text-zinc-400 tracking-wider uppercase font-medium">
-                {isOwner ? "Executive Portal" : "Operational Portal"}
-              </span>
-              {role === "owner" ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/30 rounded-full">
-                  <Crown className="w-2.5 h-2.5" />
-                  Owner
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full">
-                  <ShieldCheck className="w-2.5 h-2.5" />
-                  Admin
-                </span>
-              )}
-            </div>
-          </Link>
-        </div>
-
-        {/* Navigation list */}
-        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          <div className="px-3 py-1.5 text-[10px] uppercase font-bold tracking-widest text-zinc-400">
-            Menu Utama
-          </div>
-          {navItems.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              activeOptions={{ exact: item.exact }}
-              className="flex items-center gap-3 px-3.5 py-2.5 text-xs font-medium tracking-wide text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-xl transition-all group"
-              activeProps={{ className: "!text-white !bg-zinc-800/90 !font-semibold border border-zinc-700/60 shadow-inner" }}
-            >
-              <item.icon className="w-4 h-4 text-zinc-400 group-hover:text-amber-400 transition-colors shrink-0" />
-              <span className="truncate">{item.label}</span>
-              {item.isOwnerOnly && (
-                <span className="ml-auto text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
-                  Owner
-                </span>
-              )}
+    <div className="flex min-h-screen bg-[#0B0D10] text-[#F3F4F6] font-sans antialiased selection:bg-[#F5B800] selection:text-[#0B0D10]">
+      {/* Desktop Left Sidebar */}
+      <aside className="w-64 flex-shrink-0 bg-[#0B0D10] border-r border-[#292E36] hidden md:flex flex-col justify-between h-screen sticky top-0 z-30">
+        <div>
+          {/* Brand Logo Header */}
+          <div className="h-20 px-6 flex items-center justify-between border-b border-[#292E36]/60">
+            <Link to="/admin" className="flex items-center space-x-3 group">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#F5B800] to-yellow-600 flex items-center justify-center shadow-[0_0_12px_rgba(245,184,0,0.18)] group-hover:scale-105 transition-transform">
+                <span className="text-[#0B0D10] font-black tracking-tighter text-sm">RX</span>
+              </div>
+              <div>
+                <h1 className="text-base font-bold tracking-wider text-[#F3F4F6] group-hover:text-[#F5B800] transition-colors">
+                  RAWTIX
+                </h1>
+                <p className="text-[10px] font-medium text-[#9CA3AF] tracking-widest uppercase">
+                  {role === "owner" ? "Executive Portal" : "Admin Portal"}
+                </p>
+              </div>
             </Link>
-          ))}
-        </nav>
 
-        {/* User profile & Logout footer */}
-        <div className="p-4 border-t border-zinc-800/80 bg-black/50 space-y-3">
-          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-zinc-900/60 border border-zinc-800">
-            <div className="w-8 h-8 rounded-lg bg-zinc-800 flex items-center justify-center shrink-0 border border-zinc-700">
-              {role === "owner" ? (
-                <Crown className="w-4 h-4 text-amber-400" />
-              ) : (
-                <ShieldCheck className="w-4 h-4 text-sky-400" />
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-white truncate" title={user?.email || ""}>
-                {user?.email}
-              </p>
-              <p className="text-[10px] text-zinc-400 uppercase font-semibold">
-                {role === "owner" ? "Super Authority" : "Operational Staff"}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleLogout}
-            className="flex items-center justify-center gap-2 text-xs font-semibold tracking-wider uppercase text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 py-2 rounded-xl transition-all w-full"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Keluar Sesi
-          </button>
-        </div>
-      </aside>
-
-      {/* Mobile Header & Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="md:hidden flex items-center justify-between p-3.5 border-b border-zinc-800 bg-zinc-950">
-          <div className="flex items-center gap-2.5">
-            <span className="font-heading text-sm font-bold tracking-[0.2em] uppercase text-white">RAWTIX</span>
             {role === "owner" ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/30 rounded-full">
-                <Crown className="w-2.5 h-2.5" />
+              <span className="bg-[#F5B800]/15 border border-[#F5B800]/30 text-[#F5B800] text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shadow-sm">
+                <span className="text-[11px] leading-none">★</span>
                 Owner
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider bg-sky-500/10 text-sky-400 border border-sky-500/30 rounded-full">
-                <ShieldCheck className="w-2.5 h-2.5" />
+              <span className="bg-sky-500/15 border border-sky-500/30 text-sky-400 text-[10px] font-semibold px-2 py-0.5 rounded uppercase tracking-wider">
                 Admin
               </span>
             )}
           </div>
-          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1.5 text-zinc-400 hover:text-white">
+
+          {/* Navigation Menu */}
+          <nav className="p-4 space-y-1">
+            <div className="px-3 pb-2 pt-1 text-[11px] font-semibold text-[#9CA3AF] uppercase tracking-wider">
+              Menu Utama
+            </div>
+
+            {navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                activeOptions={{ exact: item.exact }}
+                className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-[#9CA3AF] hover:text-[#F3F4F6] hover:bg-[#15181E] transition-all group"
+                activeProps={{
+                  className: "!bg-gradient-to-r !from-[#F5B800]/15 !to-[#F5B800]/5 !border-l-4 !border-[#F5B800] !text-[#F3F4F6] !font-semibold rounded-l-none",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <item.icon className="w-5 h-5 flex-shrink-0 text-[#9CA3AF] group-hover:text-[#F5B800] transition-colors" />
+                  <span>{item.label}</span>
+                </div>
+                {item.isOwnerOnly && (
+                  <span className="bg-[#F5B800]/15 border border-[#F5B800]/30 text-[#F5B800] text-[9px] font-semibold px-1.5 py-0.5 rounded leading-none uppercase">
+                    Owner
+                  </span>
+                )}
+              </Link>
+            ))}
+          </nav>
+        </div>
+
+        {/* User Profile Badge at Sidebar Bottom */}
+        <div className="p-4 border-t border-[#292E36]/60 bg-[#0B0D10]/50 relative">
+          <div className="flex items-center justify-between p-2 rounded-lg bg-[#15181E]/80 border border-[#292E36]">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="w-8 h-8 rounded-full bg-[#F5B800]/20 border border-[#F5B800]/40 flex items-center justify-center text-[#F5B800] font-bold text-xs flex-shrink-0">
+                {initialLetter}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold text-[#F3F4F6] truncate" title={user?.email || ""}>
+                  {user?.email}
+                </p>
+                <p className="text-[10px] text-[#9CA3AF] truncate">
+                  {role === "owner" ? "Otoritas Penuh Bisnis" : "Staf Operasional Toko"}
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="text-[#9CA3AF] hover:text-[#F5B800] p-1 transition-colors"
+              title="Menu Profil & Keluar"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Profile Popover Menu */}
+          {profileMenuOpen && (
+            <div className="absolute bottom-16 right-4 left-4 bg-[#15181E] border border-[#292E36] rounded-xl p-1.5 shadow-2xl animate-in fade-in zoom-in-95 z-50">
+              <div className="px-3 py-2 border-b border-[#292E36] text-[11px] text-[#9CA3AF]">
+                Masuk sebagai <strong className="text-white">{role?.toUpperCase()}</strong>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors mt-1"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Keluar Sesi
+              </button>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Mobile Header */}
+        <header className="md:hidden flex items-center justify-between p-4 border-b border-[#292E36] bg-[#0B0D10]/95 sticky top-0 z-20 backdrop-blur">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#F5B800] to-yellow-600 flex items-center justify-center shadow-sm">
+              <span className="text-[#0B0D10] font-black text-xs">RX</span>
+            </div>
+            <span className="font-bold text-sm tracking-wider text-white">RAWTIX</span>
+            {role === "owner" ? (
+              <span className="bg-[#F5B800]/15 border border-[#F5B800]/30 text-[#F5B800] text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">
+                Owner
+              </span>
+            ) : (
+              <span className="bg-sky-500/15 border border-sky-500/30 text-sky-400 text-[9px] font-semibold px-1.5 py-0.5 rounded uppercase">
+                Admin
+              </span>
+            )}
+          </div>
+
+          <button onClick={() => setMobileOpen(!mobileOpen)} className="p-1.5 text-[#9CA3AF] hover:text-white">
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </header>
 
         {mobileOpen && (
-          <div className="md:hidden bg-zinc-950 border-b border-zinc-800 p-3 space-y-1 animate-in slide-in-from-top-2">
+          <div className="md:hidden bg-[#0B0D10] border-b border-[#292E36] p-3 space-y-1 z-20">
             {navItems.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: item.exact }}
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-400 hover:text-white hover:bg-zinc-900 rounded-lg transition-colors"
-                activeProps={{ className: "!text-white !bg-zinc-800 !font-semibold" }}
+                className="flex items-center justify-between px-3 py-2 text-xs font-medium text-[#9CA3AF] hover:text-white hover:bg-[#15181E] rounded-lg transition-colors"
+                activeProps={{ className: "!text-white !bg-[#F5B800]/15 !border-l-3 !border-[#F5B800] !font-semibold" }}
               >
-                <item.icon className="w-4 h-4" />
-                <span>{item.label}</span>
+                <div className="flex items-center gap-2.5">
+                  <item.icon className="w-4 h-4 text-[#F5B800]" />
+                  <span>{item.label}</span>
+                </div>
                 {item.isOwnerOnly && (
-                  <span className="ml-auto text-[9px] font-bold text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                  <span className="bg-[#F5B800]/20 text-[#F5B800] text-[9px] font-bold px-1.5 py-0.5 rounded">
                     Owner
                   </span>
                 )}
@@ -204,7 +242,7 @@ function AdminLayoutGuard() {
             ))}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors w-full"
+              className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors w-full"
             >
               <LogOut className="w-3.5 h-3.5" />
               Keluar Sesi
@@ -212,7 +250,7 @@ function AdminLayoutGuard() {
           </div>
         )}
 
-        <main className="flex-1 p-4 sm:p-6 md:p-8 overflow-auto bg-[#09090b]">
+        <main className="flex-1 min-w-0">
           <Outlet />
         </main>
       </div>

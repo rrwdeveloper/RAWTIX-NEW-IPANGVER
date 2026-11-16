@@ -5,9 +5,14 @@ import type { Database } from "@/integrations/supabase/types";
 import { checkMidtransStatusDirect } from "./orders.functions";
 
 // ─── Authenticated Supabase client helper ───
+function cleanEnv(val?: string) {
+  if (!val) return "";
+  return val.replace(/^["']|["']$/g, "").trim();
+}
+
 function createAuthClient(token: string) {
-  const url = process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const url = cleanEnv(process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL);
+  const key = cleanEnv(process.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
   if (!url || !key) throw new Error("Missing Supabase environment variables");
   return createClient<Database>(url, key, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -16,8 +21,8 @@ function createAuthClient(token: string) {
 }
 
 function createServiceClient() {
-  const url = process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = cleanEnv(process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL);
+  const serviceKey = cleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY);
   if (!url || !serviceKey) return null;
   return createClient<Database>(url, serviceKey, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
@@ -1040,6 +1045,115 @@ export const removeAdminRole = createServerFn({ method: "POST" })
       `Mencabut hak akses tim (Role ID: ${data.roleId.slice(0, 8)}...).`,
       { role_id: data.roleId }
     );
+    return { success: true };
+  });
+
+// ─── Owner Direct Admin Staff Management (Create & Delete) ───
+const createAdminStaffSchema = z.object({
+  token: z.string().min(1),
+  email: z.string().email("Format email tidak valid"),
+  password: z.string().min(6, "Password minimal 6 karakter"),
+});
+
+export const createAdminStaff = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => createAdminStaffSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { client, user, role } = await assertOwner(data.token);
+    const serviceClient = createServiceClient();
+    if (!serviceClient) throw new Error("Service role Supabase belum terkonfigurasi");
+
+    let targetUserId: string;
+
+    // Check if user already exists in auth
+    const { data: userList } = await serviceClient.auth.admin.listUsers();
+    const existing = userList?.users?.find(
+      (u) => u.email?.toLowerCase() === data.email.toLowerCase()
+    );
+
+    if (existing) {
+      targetUserId = existing.id;
+    } else {
+      const { data: newUser, error: createErr } = await serviceClient.auth.admin.createUser({
+        email: data.email,
+        password: data.password,
+        email_confirm: true,
+      });
+
+      if (createErr || !newUser.user) {
+        throw new Error("Gagal membuat user auth: " + (createErr?.message || "Unknown error"));
+      }
+      targetUserId = newUser.user.id;
+    }
+
+    // Upsert role into public.user_roles
+    const { error: roleErr } = await serviceClient.from("user_roles").upsert(
+      {
+        user_id: targetUserId,
+        role: "admin",
+      },
+      { onConflict: "user_id,role" }
+    );
+
+    if (roleErr) throw new Error("Gagal menetapkan peran admin: " + roleErr.message);
+
+    await logUserAction(
+      client,
+      user,
+      role,
+      "CREATE_ADMIN",
+      `Staf Admin: ${data.email}`,
+      `Owner menambahkan staf Admin baru (${data.email}) dan memberikan hak akses operasional toko.`,
+      { target_email: data.email, target_user_id: targetUserId }
+    );
+
+    return { success: true, email: data.email, userId: targetUserId };
+  });
+
+const deleteAdminStaffSchema = z.object({
+  token: z.string().min(1),
+  roleId: z.string().uuid(),
+  userId: z.string().uuid(),
+  email: z.string().optional(),
+});
+
+export const deleteAdminStaff = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => deleteAdminStaffSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { client, user, role } = await assertOwner(data.token);
+    const serviceClient = createServiceClient();
+
+    // Prevent deleting owner themselves
+    if (data.userId === user.id) {
+      throw new Error("Tidak dapat mencabut akses atau menghapus akun Owner sendiri");
+    }
+
+    // Delete role from user_roles
+    const { error: delErr } = await client
+      .from("user_roles")
+      .delete()
+      .eq("id", data.roleId);
+
+    if (delErr) throw new Error("Gagal mencabut hak akses: " + delErr.message);
+
+    // Optionally remove from Auth
+    if (serviceClient) {
+      try {
+        await serviceClient.auth.admin.deleteUser(data.userId);
+      } catch (e) {
+        // user role already deleted
+      }
+    }
+
+    await logUserAction(
+      client,
+      user,
+      role,
+      "REMOVE_ADMIN",
+      `Hapus Staf: ${data.email || data.userId}`,
+      `Owner mencabut hak akses dan menghapus staf Admin (${data.email || data.userId}).`,
+      { target_user_id: data.userId, target_email: data.email, role_id: data.roleId }
+    );
+
     return { success: true };
   });
 
