@@ -29,6 +29,27 @@ export const Route = createFileRoute("/")({
 function HomePage() {
   const [quickViewProduct, setQuickViewProduct] = useState<any>(null);
 
+  // Fetch live homepage hero settings from site_settings (Owner customizable)
+  const { data: heroSettings } = useQuery({
+    queryKey: ["homepage_hero_settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_settings")
+        .select("value")
+        .eq("key", "homepage_hero")
+        .maybeSingle();
+      if (error || !data) return null;
+      return data.value as {
+        headline?: string;
+        subheadline?: string;
+        cta_text?: string;
+        cta_link?: string;
+        background_image?: string;
+        overlay_opacity?: number;
+      };
+    },
+  });
+
   // Fetch live products if available
   const { data: dbProducts } = useQuery({
     queryKey: ["homepage-products"],
@@ -97,27 +118,32 @@ function HomePage() {
         {/* ============================================================== */}
         <section className="relative isolate flex min-h-[92vh] sm:min-h-screen items-center justify-center overflow-hidden border-b border-white/10 px-6 py-28 sm:py-36">
           <img
-            src={heroEnsemble}
+            src={heroSettings?.background_image || heroEnsemble}
             alt="Model RAWTIX mengenakan koleksi modern heritage batik dengan Mandarin collar dan fireman clasp"
-            className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_center] filter brightness-[0.82] contrast-[1.08]"
+            className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_center] filter brightness-[0.82] contrast-[1.08] transition-opacity duration-700"
             fetchPriority="high"
           />
-          {/* Subtle dark gradient overlay for black/grey dominance */}
-          <div className="absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/45 to-black/85" />
+          {/* Subtle dark gradient overlay for black/grey dominance (opacity controllable by Owner) */}
+          <div
+            className="absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/45 to-black/85 transition-opacity duration-300"
+            style={{
+              opacity: heroSettings?.overlay_opacity != null ? heroSettings.overlay_opacity / 100 : 1,
+            }}
+          />
 
           <div className="relative z-10 max-w-4xl text-center text-white px-4">
             <h1 className="font-serif text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-normal tracking-tight leading-[1.12] drop-shadow-md">
-              Designed in Jakarta, Worn Beyond Borders.
+              {heroSettings?.headline || "Designed in Jakarta, Worn Beyond Borders."}
             </h1>
             <p className="mt-5 text-xs sm:text-sm uppercase tracking-[0.28em] text-white/80 font-light max-w-xl mx-auto">
-              Modern Heritage &amp; Fine Bespoke Batik
+              {heroSettings?.subheadline || "Modern Heritage & Fine Bespoke Batik"}
             </p>
             <div className="mt-8 sm:mt-10">
               <a
-                href="#signature-pieces"
+                href={heroSettings?.cta_link || "#signature-pieces"}
                 className="inline-block text-xs sm:text-sm font-semibold tracking-[0.25em] uppercase text-white border-b border-white pb-1.5 hover:text-white/70 hover:border-white/70 transition-colors"
               >
-                EXPLORE THE COLLECTION
+                {heroSettings?.cta_text || "EXPLORE THE COLLECTION"}
               </a>
             </div>
           </div>

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/admin/shipping")({
 });
 
 function AdminShippingPage() {
-  const { token } = useAdminAuth();
+  const { token, isOwner } = useAdminAuth();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", price: 0, isDefault: false, active: true, sortOrder: 0 });
@@ -119,9 +119,15 @@ function AdminShippingPage() {
                     <button onClick={() => startEdit(rate)} className="p-1.5 text-muted-foreground hover:text-foreground">
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => deleteMutation.mutate(rate.id)} className="p-1.5 text-muted-foreground hover:text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={() => deleteMutation.mutate(rate.id)}
+                        title="Hapus Tarif (Khusus Owner)"
+                        className="p-1.5 text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               )}

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/admin/products")({
 });
 
 function AdminProductsPage() {
-  const { token } = useAdminAuth();
+  const { token, isOwner } = useAdminAuth();
   const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "preorder" | "draft" | "sold_out">("all");
@@ -113,29 +113,32 @@ function AdminProductsPage() {
                     <Edit className="w-4 h-4" />
                   </Link>
 
-                  {deleteId === product.id ? (
-                    <div className="flex items-center gap-1">
+                  {isOwner && (
+                    deleteId === product.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => deleteMutation.mutate(product.id)}
+                          disabled={deleteMutation.isPending}
+                          className="px-2 py-1 text-[10px] bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 rounded"
+                        >
+                          Ya
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(null)}
+                          className="px-2 py-1 text-[10px] border border-border text-muted-foreground hover:text-foreground rounded"
+                        >
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
                       <button
-                        onClick={() => deleteMutation.mutate(product.id)}
-                        disabled={deleteMutation.isPending}
-                        className="px-2 py-1 text-[10px] bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+                        onClick={() => setDeleteId(product.id)}
+                        title="Hapus Produk (Khusus Owner)"
+                        className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
                       >
-                        Ya
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => setDeleteId(null)}
-                        className="px-2 py-1 text-[10px] border border-border text-muted-foreground hover:text-foreground"
-                      >
-                        Batal
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteId(product.id)}
-                      className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    )
                   )}
                 </div>
               </div>

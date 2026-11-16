@@ -20,7 +20,7 @@ interface CategoryForm {
 }
 
 function AdminCategoriesPage() {
-  const { token } = useAdminAuth();
+  const { token, isOwner } = useAdminAuth();
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -110,23 +110,29 @@ function AdminCategoriesPage() {
                   <button onClick={() => startEdit(cat)} className="p-1.5 text-muted-foreground hover:text-foreground">
                     <Edit className="w-3.5 h-3.5" />
                   </button>
-                  {deleteId === cat.id ? (
-                    <div className="flex items-center gap-1">
+                  {isOwner && (
+                    deleteId === cat.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => deleteMutation.mutate(cat.id)}
+                          disabled={deleteMutation.isPending}
+                          className="px-2 py-1 text-[10px] bg-red-600 text-white rounded"
+                        >
+                          Ya
+                        </button>
+                        <button onClick={() => setDeleteId(null)} className="px-2 py-1 text-[10px] border border-border text-muted-foreground rounded">
+                          Batal
+                        </button>
+                      </div>
+                    ) : (
                       <button
-                        onClick={() => deleteMutation.mutate(cat.id)}
-                        disabled={deleteMutation.isPending}
-                        className="px-2 py-1 text-[10px] bg-red-600 text-white"
+                        onClick={() => setDeleteId(cat.id)}
+                        title="Hapus Kategori (Khusus Owner)"
+                        className="p-1.5 text-muted-foreground hover:text-destructive"
                       >
-                        Ya
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => setDeleteId(null)} className="px-2 py-1 text-[10px] border border-border text-muted-foreground">
-                        Batal
-                      </button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setDeleteId(cat.id)} className="p-1.5 text-muted-foreground hover:text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    )
                   )}
                 </div>
               </div>

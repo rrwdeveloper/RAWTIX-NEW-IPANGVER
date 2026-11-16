@@ -29,7 +29,7 @@ function AdminLoginPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Login gagal";
       if (msg.includes("Forbidden") || msg.includes("not an admin")) {
-        setError("Akun ini tidak memiliki akses admin.");
+        setError("Akun ini tidak memiliki akses admin atau owner.");
         await supabase.auth.signOut();
       } else {
         setError(msg);

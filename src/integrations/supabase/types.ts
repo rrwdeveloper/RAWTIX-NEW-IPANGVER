@@ -401,6 +401,63 @@ export type Database = {
         }
         Relationships: []
       }
+      site_settings: {
+        Row: {
+          key: string
+          value: Json
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          key: string
+          value: Json
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          key?: string
+          value?: Json
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      user_logs: {
+        Row: {
+          id: string
+          user_id: string | null
+          user_email: string
+          role: Database["public"]["Enums"]["app_role"]
+          action: string
+          entity: string
+          description: string | null
+          details: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          user_email: string
+          role: Database["public"]["Enums"]["app_role"]
+          action: string
+          entity: string
+          description?: string | null
+          details?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          user_email?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          action?: string
+          entity?: string
+          description?: string | null
+          details?: Json | null
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -442,7 +499,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin"
+      app_role: "admin" | "owner"
       order_status:
         | "pending"
         | "paid"
@@ -578,7 +635,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin"],
+      app_role: ["admin", "owner"],
       order_status: [
         "pending",
         "paid",
