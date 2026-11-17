@@ -4,9 +4,9 @@ import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
 // Editorial Images
-import editorialElevator from "../../asset/editorial/rawtix-editorial-elevator.png";
-import editorialGroomsmen from "../../asset/editorial/rawtix-editorial-groomsmen.png";
-import editorialJavas from "../../asset/editorial/rawtix-editorial-javas.png";
+import editorialElevator from "../../asset/editorial/rawtix-editorial-elevator.webp";
+import editorialGroomsmen from "../../asset/editorial/rawtix-editorial-groomsmen.webp";
+import editorialJavas from "../../asset/editorial/rawtix-editorial-javas.webp";
 
 export const Route = createFileRoute("/company")({
   component: CompanyPage,
@@ -62,7 +62,7 @@ function CompanyPage() {
             <div className="lg:col-span-6 relative overflow-hidden border-b lg:border-b-0 lg:border-r border-border bg-neutral-900/60 flex items-center justify-center p-6 sm:p-10">
               <div className="w-full max-w-lg overflow-hidden rounded-xs border border-border shadow-2xl">
                 <img
-                  src="/brand/02-craft.png"
+                  src="/brand/02-craft.webp"
                   alt="Pengrajin Batik Tradisional Canting RAWTIX"
                   className="w-full h-auto block"
                   loading="lazy"
@@ -146,7 +146,7 @@ function CompanyPage() {
             <div className="lg:col-span-6 relative overflow-hidden border-b lg:border-b-0 lg:border-l border-border bg-neutral-900/60 flex items-center justify-center p-6 sm:p-10 order-1 lg:order-2">
               <div className="w-full max-w-lg overflow-hidden rounded-xs border border-border shadow-2xl">
                 <img
-                  src="/brand/01-about-us.png"
+                  src="/brand/01-about-us.webp"
                   alt="Motif Naga dan Awan RAWTIX"
                   className="w-full h-auto block"
                   loading="lazy"
@@ -180,7 +180,7 @@ function CompanyPage() {
 
               <div className="overflow-hidden rounded-xs border border-border mt-6 shadow-xl bg-neutral-950">
                 <img
-                  src="/brand/03-vision.png"
+                  src="/brand/03-vision.webp"
                   alt="Koleksi Bahan Batik RAWTIX - Our Vision & Mission"
                   className="w-full h-auto block"
                   loading="lazy"
@@ -260,7 +260,7 @@ function CompanyPage() {
                   title: "Bespoke & Made to Measure",
                   subtitle: "Custom Order Personal",
                   desc: "Layanan pembuatan busana batik yang disesuaikan secara khusus (tailored fit) untuk perorangan, pasangan, maupun keluarga.",
-                  img: "/brand/06-bespoke.png",
+                  img: "/brand/06-bespoke.webp",
                 },
                 {
                   num: "03",
@@ -274,7 +274,7 @@ function CompanyPage() {
                   title: "Limited Collections",
                   subtitle: "Exclusive Editions",
                   desc: "Perilisan koleksi terbatas bertema khusus seperti Phoenix Fireman Clasp Series yang diproduksi dalam kuota terbatas bagi kolektor fesyen.",
-                  img: "/brand/07-limited.png",
+                  img: "/brand/07-limited.webp",
                 },
               ].map((s) => (
                 <div
@@ -319,7 +319,7 @@ function CompanyPage() {
             {/* Visual Frame */}
             <div className="lg:col-span-5 relative overflow-hidden rounded-xs border border-border bg-neutral-900">
               <img
-                src="/brand/08-why-rawtix.png"
+                src="/brand/08-why-rawtix.webp"
                 alt="Why Choose RAWTIX"
                 className="w-full h-auto object-cover filter brightness-[0.92]"
                 loading="lazy"

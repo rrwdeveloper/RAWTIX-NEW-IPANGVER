@@ -11,12 +11,12 @@ import { useQuery } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 
 // Images
-import heroEnsemble from "../../asset/rawtix-hero-ensemble.png";
-import editorialElevator from "../../asset/editorial/rawtix-editorial-elevator.png";
-import editorialGroomsmen from "../../asset/editorial/rawtix-editorial-groomsmen.png";
-import editorialJavas from "../../asset/editorial/rawtix-editorial-javas.png";
-import editorialVintage from "../../asset/editorial/rawtix-editorial-vintage.png";
-import editorialTemple from "../../asset/editorial/rawtix-editorial-temple.png";
+import heroEnsemble from "../../asset/rawtix-hero-ensemble.webp";
+import editorialElevator from "../../asset/editorial/rawtix-editorial-elevator.webp";
+import editorialGroomsmen from "../../asset/editorial/rawtix-editorial-groomsmen.webp";
+import editorialJavas from "../../asset/editorial/rawtix-editorial-javas.webp";
+import editorialVintage from "../../asset/editorial/rawtix-editorial-vintage.webp";
+import editorialTemple from "../../asset/editorial/rawtix-editorial-temple.webp";
 
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type ProductImageRow = Database["public"]["Tables"]["product_images"]["Row"];
@@ -476,7 +476,7 @@ function HomePage() {
                 {/* Collar Detail Graphic Frame */}
                 <div className="lg:col-span-5 relative overflow-hidden rounded-xs border border-border bg-neutral-900/40">
                   <img
-                    src="/brand/08-why-rawtix.png"
+                    src="/brand/08-why-rawtix.webp"
                     alt="Detail Kerah Mandarin dan Motif Batik RAWTIX"
                     className="w-full h-auto object-cover filter brightness-[0.92] contrast-[1.05]"
                     loading="lazy"

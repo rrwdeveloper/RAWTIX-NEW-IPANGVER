@@ -1,14 +1,14 @@
-import artboard1 from "../../asset/Artboard 1.png";
-import artboard2 from "../../asset/Artboard 2.png";
-import artboard3 from "../../asset/Artboard 3.png";
-import artboard4 from "../../asset/Artboard 4.png";
-import artboard5 from "../../asset/Artboard 5.png";
-import artboard6 from "../../asset/Artboard 6.png";
-import artboard7 from "../../asset/Artboard 7.png";
-import artboard8 from "../../asset/Artboard 8.png";
-import artboard9 from "../../asset/Artboard 9.png";
-import artboard10 from "../../asset/Artboard 10.png";
-import artboard11 from "../../asset/Artboard 11.png";
+import artboard1 from "../../asset/Artboard 1.webp";
+import artboard2 from "../../asset/Artboard 2.webp";
+import artboard3 from "../../asset/Artboard 3.webp";
+import artboard4 from "../../asset/Artboard 4.webp";
+import artboard5 from "../../asset/Artboard 5.webp";
+import artboard6 from "../../asset/Artboard 6.webp";
+import artboard7 from "../../asset/Artboard 7.webp";
+import artboard8 from "../../asset/Artboard 8.webp";
+import artboard9 from "../../asset/Artboard 9.webp";
+import artboard10 from "../../asset/Artboard 10.webp";
+import artboard11 from "../../asset/Artboard 11.webp";
 
 export type CatalogueItem = {
   image: string;
