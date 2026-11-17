@@ -3,5 +3,15 @@
   "name": "rawtix",
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry"
+  "main": "@tanstack/react-start/server-entry",
+  "vars": {
+    "APP_URL": "https://rawtix.rrw-dev.workers.dev",
+    "DOKU_CLIENT_ID": "BRN-0229-1794847405864",
+    "DOKU_IS_PRODUCTION": "true",
+    "KOMERCE_API_KEY": "zZB8GVM93ab23fcdb95c07e8V66uYqGR",
+    "SUPABASE_URL": "https://qoyqiywmoxqlhcuknkwe.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFveXFpeXdtb3hxbGhjdWtua3dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4NDU1NDIsImV4cCI6MjExMDQyMTU0Mn0.k_Im9U4VoIYI-BBw2kK-M-tIfg_gWtFnwmTSQA4HZq0",
+    "VITE_SUPABASE_URL": "https://qoyqiywmoxqlhcuknkwe.supabase.co",
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFveXFpeXdtb3hxbGhjdWtua3dlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4NDU1NDIsImV4cCI6MjExMDQyMTU0Mn0.k_Im9U4VoIYI-BBw2kK-M-tIfg_gWtFnwmTSQA4HZq0"
+  }
 }
