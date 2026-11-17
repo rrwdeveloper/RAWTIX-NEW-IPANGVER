@@ -173,9 +173,11 @@ export const createOrder = createServerFn({ method: "POST" })
     const shippingCost = data.shippingCost ?? 0;
     const total = subtotal + shippingCost;
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
     const itemsJsonb = data.items.map((item) => ({
-      product_id: item.productId,
-      variant_id: item.variantId,
+      product_id: uuidRegex.test(item.productId) ? item.productId : null,
+      variant_id: uuidRegex.test(item.variantId) ? item.variantId : null,
       product_name: item.name,
       size: item.size,
       price: item.price,
