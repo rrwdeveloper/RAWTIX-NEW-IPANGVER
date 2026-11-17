@@ -126,16 +126,21 @@ function CartPage() {
                   className="flex gap-4 pb-6 border-b border-border"
                 >
                   {/* Thumbnail */}
-                  <div className="w-20 h-20 bg-card flex-shrink-0 overflow-hidden">
-                    {item.image ? (
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-secondary" />
-                    )}
+                  <div className="w-20 h-20 bg-card flex-shrink-0 overflow-hidden relative">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback jika URL gambar di keranjang lama rusak atau path hash Vite berubah
+                        const catalogueMatch = READY_STOCK_CATALOGUE.find(
+                          (c) => c.name.toLowerCase() === item.name.toLowerCase() || c.productId === item.productId
+                        );
+                        if (catalogueMatch?.image && e.currentTarget.src !== catalogueMatch.image) {
+                          e.currentTarget.src = catalogueMatch.image;
+                        }
+                      }}
+                    />
                   </div>
 
                   {/* Info */}
