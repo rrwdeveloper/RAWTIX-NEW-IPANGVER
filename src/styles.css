@@ -307,3 +307,23 @@
   color: #f3f4f6;
 }
 
+/* ── Custom Canting Batik Cursor (Desktop only - Hardware Accelerated CSS) ─── */
+@media (hover: hover) and (pointer: fine) {
+  html,
+  body {
+    cursor: url("/canting-cursor.svg") 1 1, auto !important;
+  }
+
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  .cursor-pointer,
+  .interactive {
+    cursor: url("/canting-pointer.svg") 1 1, pointer !important;
+  }
+}
+
+

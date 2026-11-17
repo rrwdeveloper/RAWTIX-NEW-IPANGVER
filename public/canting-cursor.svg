@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <!-- Sharp contrast shadow for deep dark and crisp light backgrounds -->
+    <filter id="canting-3d-shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="1" dy="1.5" stdDeviation="0.8" flood-color="#000000" flood-opacity="0.9"/>
+      <feDropShadow dx="-0.5" dy="-0.5" stdDeviation="0.4" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+
+    <!-- Warm 3D Brass Copper (Nyamplung) -->
+    <linearGradient id="nyamplung-3d" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF8E7"/>
+      <stop offset="25%" stop-color="#FCD34D"/>
+      <stop offset="55%" stop-color="#D97706"/>
+      <stop offset="85%" stop-color="#92400E"/>
+      <stop offset="100%" stop-color="#542507"/>
+    </linearGradient>
+
+    <!-- Authentic Dark Bamboo/Wood (Gagang) -->
+    <linearGradient id="gagang-3d" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78350F"/>
+      <stop offset="40%" stop-color="#451A03"/>
+      <stop offset="85%" stop-color="#240D02"/>
+      <stop offset="100%" stop-color="#0F0400"/>
+    </linearGradient>
+
+    <!-- Hot Golden Molten Wax Inside Bowl -->
+    <linearGradient id="wax-3d" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="50%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#B45309"/>
+    </linearGradient>
+  </defs>
+
+  <g filter="url(#canting-3d-shadow)">
+    <!-- 1. GAGANG KAYU BAMBU (BAMBOO HANDLE) -->
+    <!-- Batang ramping memanjang ke kanan bawah -->
+    <path d="M15.5 15.5 L25.5 25.5 C26.8 26.8 28.5 26.8 29.5 25.8 C30.5 24.8 30.5 23.1 29.2 21.8 L19.2 11.8 Z" 
+          fill="url(#gagang-3d)" 
+          stroke="#120601" 
+          stroke-width="0.75" 
+          stroke-linejoin="round"/>
+    
+    <!-- Ruas bambu alami beraksen emas -->
+    <path d="M20.5 20.5 L23.5 17.5" stroke="#FDE68A" stroke-width="0.75" stroke-linecap="round" opacity="0.8"/>
+    <path d="M24 24 L27 21" stroke="#FDE68A" stroke-width="0.75" stroke-linecap="round" opacity="0.8"/>
+
+    <!-- Ferrule / Cincin Pengikat Kuningan -->
+    <path d="M15 16 L18.5 12.5 L19.5 13.5 L16 17 Z" fill="url(#nyamplung-3d)" stroke="#3D2906" stroke-width="0.5"/>
+
+    <!-- 2. NYAMPLUNG (WADAH BEJANA TEMBAGA 3D MEWAH) -->
+    <path d="M9.5 13 C8.2 17 12.5 20 16 16.8 C17.8 15.2 17.2 12.2 14.8 11 C12.6 10 10.2 11 9.5 13 Z" 
+          fill="url(#nyamplung-3d)" 
+          stroke="#301A03" 
+          stroke-width="0.8"/>
+
+    <!-- Bukaan bibir nyamplung atas -->
+    <ellipse cx="13.8" cy="12.2" rx="2.6" ry="1.2" transform="rotate(-35 13.8 12.2)" 
+             fill="#180B02" stroke="#FEF3C7" stroke-width="0.5"/>
+    <!-- Genangan lilin malam cair hangat di dalam mangkuk -->
+    <ellipse cx="13.8" cy="12.2" rx="1.8" ry="0.8" transform="rotate(-35 13.8 12.2)" 
+             fill="url(#wax-3d)"/>
+
+    <!-- 3. CUCUK CANTING (CORONG TEMBAGA MELENGKUNG ANGGUN KE 1, 1) -->
+    <path d="M1 1 C3.2 3.8 6.5 7.5 10.5 12 C11.5 11.2 11.8 10.2 10.8 9 C7.2 5.5 3.8 2 1 1 Z" 
+          fill="url(#nyamplung-3d)" 
+          stroke="#301A03" 
+          stroke-width="0.8" 
+          stroke-linejoin="round"/>
+
+    <!-- Specular highlight berkilau pada lekukan cucuk -->
+    <path d="M1.8 1.8 C4 4.5 7.2 8 10 10.2" stroke="#FFFFFF" stroke-width="0.75" stroke-linecap="round"/>
+
+    <!-- 4. UJUNG TETESAN MALAM PANAS (HOTSPOT PRESISI KLIK DI 1, 1) -->
+    <circle cx="1" cy="1" r="1.3" fill="#F59E0B" stroke="#FFFFFF" stroke-width="0.5"/>
+    <circle cx="1" cy="1" r="0.5" fill="#FFFFFF"/>
+  </g>
+</svg>

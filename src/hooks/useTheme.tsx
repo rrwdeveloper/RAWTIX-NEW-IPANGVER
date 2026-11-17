@@ -15,7 +15,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === "undefined") return "dark";
     const stored = localStorage.getItem(STORAGE_KEY);
-    return stored === "light" ? "light" : "dark";
+    if (stored === "light") {
+      document.documentElement.classList.add("light");
+      return "light";
+    }
+    return "dark";
   });
 
   useEffect(() => {
@@ -25,7 +29,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       root.classList.remove("light");
     }
-    localStorage.setItem(STORAGE_KEY, theme);
+    try {
+      localStorage.setItem(STORAGE_KEY, theme);
+    } catch {
+      // ignore in restricted mode
+    }
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

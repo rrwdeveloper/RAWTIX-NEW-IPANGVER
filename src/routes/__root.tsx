@@ -10,6 +10,7 @@ import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import { CartProvider } from "@/hooks/useCart";
 import { ThemeProvider } from "@/hooks/useTheme";
+import { CantingCursor } from "@/components/ui/CantingCursor";
 
 function NotFoundComponent() {
   return (
@@ -57,8 +58,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="id" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem("rawtix-theme");if(t==="light"){document.documentElement.classList.add("light");}else{document.documentElement.classList.remove("light");}}catch(e){}})();`,
+          }}
+        />
         <HeadContent />
         <script 
           src="https://app.sandbox.midtrans.com/snap/snap.js" 
