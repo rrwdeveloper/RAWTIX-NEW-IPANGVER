@@ -23,8 +23,8 @@ function getServiceClient() {
 }
 
 const cartItemSchema = z.object({
-  productId: z.string().uuid(),
-  variantId: z.string().uuid(),
+  productId: z.string().min(1).max(100),
+  variantId: z.string().min(1).max(100),
   name: z.string().min(1).max(255),
   size: z.string().min(1).max(50),
   price: z.number().int().positive(),
