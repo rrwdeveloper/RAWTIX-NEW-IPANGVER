@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { createDokuCheckoutPayment } from "./doku.functions";
 
 function getAnonClient() {
   const url = process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
@@ -208,12 +209,54 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const orderResult = result as GuestOrderResult | null;
 
-    // --- Request Midtrans Snap Token ---
+    // --- Request DOKU Checkout Payment URL (Primary) ---
     let snapToken = null;
     let redirectUrl = null;
+    const dokuClientId = process.env.DOKU_CLIENT_ID;
+
+    if (dokuClientId) {
+      try {
+        const dokuItems = data.items.map((item) => ({
+          name: item.name.slice(0, 50),
+          price: item.price,
+          quantity: item.quantity,
+        })).concat([{
+          name: `Ongkir - ${(data.shippingMethodName || "Reguler").slice(0, 40)}`,
+          price: shippingCost,
+          quantity: 1,
+        }]);
+
+        const dokuResult = await createDokuCheckoutPayment({
+          orderNumber,
+          amount: total,
+          customerName: data.customerName,
+          email: data.email,
+          phone: data.phone,
+          items: dokuItems,
+        });
+
+        if (dokuResult.paymentUrl) {
+          redirectUrl = dokuResult.paymentUrl;
+
+          const service = getServiceClient();
+          if (service) {
+            await service
+              .from("orders")
+              .update({
+                payment_reference: dokuResult.paymentUrl,
+                payment_method: "doku",
+              })
+              .eq("order_number", orderNumber);
+          }
+        }
+      } catch (err) {
+        console.error("[DOKU] Checkout generation error:", err);
+      }
+    }
+
+    // --- Fallback Midtrans Snap (if DOKU not configured) ---
     const midtransServerKey = process.env.MIDTRANS_SERVER_KEY;
-    
-    if (midtransServerKey) {
+    if (!redirectUrl && midtransServerKey) {
       try {
         const authHeader = `Basic ${Buffer.from(midtransServerKey + ':').toString('base64')}`;
         const midtransResponse = await fetch('https://app.sandbox.midtrans.com/snap/v1/transactions', {
@@ -276,8 +319,6 @@ export const createOrder = createServerFn({ method: "POST" })
               console.warn("Fallback service update token failed:", err);
             }
           }
-        } else {
-          console.error("Midtrans Snap API error:", midtransData);
         }
       } catch (err) {
         console.error("Midtrans fetch error:", err);
@@ -380,9 +421,45 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
       if (service) {
         const { data: dbOrder } = await service
           .from("orders")
-          .select("payment_reference, payment_proof_url")
+          .select("payment_reference, payment_proof_url, payment_method, status")
           .eq("order_number", data.orderNumber)
           .maybeSingle();
+
+        // --- DOKU: payment_reference is the DOKU Checkout URL ---
+        if (dbOrder?.payment_method === "doku") {
+          const dokuPaymentUrl = dbOrder.payment_reference && dbOrder.payment_reference.startsWith("http")
+            ? dbOrder.payment_reference
+            : null;
+
+          // Map DB status to our standard statuses
+          const dbStatus = (dbOrder?.status || "pending") as "pending" | "paid" | "cancelled";
+
+          return {
+            id: orderData.id,
+            order_number: orderData.order_number,
+            customer_name: orderData.customer_name,
+            email: orderData.email,
+            total: orderData.total,
+            subtotal: orderData.subtotal,
+            shipping_cost: orderData.shipping_cost,
+            shipping_method_name: orderData.shipping_method_name,
+            status: dbStatus,
+            midtrans_status: dbStatus === "paid" ? "settlement" : dbStatus === "cancelled" ? "cancel" : "pending",
+            payment_type: "doku",
+            va_numbers: null,
+            bill_key: null,
+            biller_code: null,
+            permata_va_number: null,
+            qr_string: null,
+            expiry_time: null,
+            snap_token: null,
+            payment_proof_url: dokuPaymentUrl,
+            payment_proof_submitted_at: orderData.payment_proof_submitted_at,
+            created_at: orderData.created_at,
+            items: orderData.items || [],
+          };
+        }
+
         if (dbOrder?.payment_reference && !dbOrder.payment_reference.startsWith("http")) {
           snapToken = dbOrder.payment_reference;
         } else if (dbOrder?.payment_proof_url && dbOrder.payment_proof_url.startsWith("midtrans_snap:")) {
@@ -446,6 +523,7 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
       items: orderData.items || [],
     };
   });
+
 
 export const syncOrderPaymentStatus = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => orderNumberSchema.parse(input))

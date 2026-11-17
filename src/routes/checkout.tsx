@@ -133,25 +133,41 @@ function CheckoutPage() {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.length < 3) {
+    const trimmed = searchQuery.trim();
+    if (trimmed.length < 3) {
       setSearchResults([]);
+      setShowDropdown(false);
+      setIsSearching(false);
       return;
     }
-    const timer = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const results = await searchDestinationFn({ data: { query: searchQuery } });
-        setSearchResults(results);
-        setShowDropdown(true);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 500);
 
-    return () => clearTimeout(timer);
-  }, [searchQuery, searchDestinationFn]);
+    let active = true;
+    setIsSearching(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchDestinationFn({ data: { query: trimmed } });
+        if (active) {
+          setSearchResults(Array.isArray(results) ? results : []);
+          setShowDropdown(true);
+        }
+      } catch (err) {
+        console.error("Destination search failed:", err);
+        if (active) {
+          setSearchResults([]);
+        }
+      } finally {
+        if (active) {
+          setIsSearching(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   const selectDestination = async (opt: DestinationOption) => {
     setSearchQuery(opt.label);
@@ -403,18 +419,30 @@ function CheckoutPage() {
                   />
                   {isSearching && <span className="absolute right-4 top-3.5 text-xs text-muted-foreground">Mencari...</span>}
                   
-                  {showDropdown && searchResults.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-background border border-border max-h-60 overflow-y-auto shadow-lg">
-                      {searchResults.map((opt) => (
-                        <div
-                          key={opt.id}
-                          className="px-4 py-2 text-sm hover:bg-foreground/5 cursor-pointer border-b border-border/50 last:border-0"
-                          onClick={() => selectDestination(opt)}
-                        >
-                          <p className="font-medium">{opt.subdistrict_name}, {opt.city_name}</p>
-                          <p className="text-xs text-muted-foreground">{opt.province_name} - {opt.zip_code}</p>
-                        </div>
-                      ))}
+                  {showDropdown && (
+                    <div className="absolute z-20 w-full mt-1 bg-card border border-border max-h-64 overflow-y-auto shadow-2xl rounded-sm">
+                      {searchResults.length > 0 ? (
+                        searchResults.map((opt) => (
+                          <div
+                            key={opt.id}
+                            className="px-4 py-3 text-sm hover:bg-foreground/10 cursor-pointer border-b border-border/50 last:border-0 transition-colors"
+                            onClick={() => selectDestination(opt)}
+                          >
+                            <p className="font-semibold text-foreground text-xs sm:text-sm">
+                              {opt.district_name || opt.subdistrict_name}, {opt.city_name}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">
+                              {opt.province_name} {opt.zip_code ? `· Kodepos ${opt.zip_code}` : ""}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        !isSearching && searchQuery.trim().length >= 3 && (
+                          <div className="px-4 py-3 text-xs text-muted-foreground text-center">
+                            Tidak ditemukan hasil untuk "{searchQuery}". Coba ketik nama kota atau kecamatan lain.
+                          </div>
+                        )
+                      )}
                     </div>
                   )}
                   {errors.destination && <p className="text-destructive text-xs mt-1">{errors.destination}</p>}

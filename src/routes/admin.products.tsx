@@ -35,7 +35,7 @@ function AdminProductsPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 max-w-5xl mx-auto pb-12">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-xl font-bold tracking-wider uppercase text-foreground">Produk</h1>
         <Link

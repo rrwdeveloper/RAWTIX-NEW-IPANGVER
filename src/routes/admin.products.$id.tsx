@@ -96,7 +96,7 @@ function AdminEditProductPage() {
   };
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-4xl mx-auto pb-12 space-y-6">
       <div className="flex items-center gap-3">
         <Link to="/admin/products" className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-4 h-4" />

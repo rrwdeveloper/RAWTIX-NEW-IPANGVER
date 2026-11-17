@@ -28,6 +28,7 @@ import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as ShopCategoryRouteImport } from './routes/shop.$category'
 import { Route as ProductSlugRouteImport } from './routes/product.$slug'
 import { Route as ApiMidtransNotificationRouteImport } from './routes/api.midtrans-notification'
+import { Route as ApiDokuNotificationRouteImport } from './routes/api.doku-notification'
 import { Route as AdminLoginRouteImport } from './routes/admin_.login'
 import { Route as AdminShippingRouteImport } from './routes/admin.shipping'
 import { Route as AdminProductsRouteImport } from './routes/admin.products'
@@ -134,6 +135,11 @@ const ApiMidtransNotificationRoute = ApiMidtransNotificationRouteImport.update({
   path: '/api/midtrans-notification',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDokuNotificationRoute = ApiDokuNotificationRouteImport.update({
+  id: '/api/doku-notification',
+  path: '/api/doku-notification',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin_/login',
   path: '/admin/login',
@@ -208,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/admin/products': typeof AdminProductsRouteWithChildren
   '/admin/shipping': typeof AdminShippingRoute
   '/admin/login': typeof AdminLoginRoute
+  '/api/doku-notification': typeof ApiDokuNotificationRoute
   '/api/midtrans-notification': typeof ApiMidtransNotificationRoute
   '/product/$slug': typeof ProductSlugRoute
   '/shop/$category': typeof ShopCategoryRoute
@@ -238,6 +245,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AdminProductsRouteWithChildren
   '/admin/shipping': typeof AdminShippingRoute
   '/admin/login': typeof AdminLoginRoute
+  '/api/doku-notification': typeof ApiDokuNotificationRoute
   '/api/midtrans-notification': typeof ApiMidtransNotificationRoute
   '/product/$slug': typeof ProductSlugRoute
   '/shop/$category': typeof ShopCategoryRoute
@@ -270,6 +278,7 @@ export interface FileRoutesById {
   '/admin/products': typeof AdminProductsRouteWithChildren
   '/admin/shipping': typeof AdminShippingRoute
   '/admin_/login': typeof AdminLoginRoute
+  '/api/doku-notification': typeof ApiDokuNotificationRoute
   '/api/midtrans-notification': typeof ApiMidtransNotificationRoute
   '/product/$slug': typeof ProductSlugRoute
   '/shop/$category': typeof ShopCategoryRoute
@@ -303,6 +312,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/shipping'
     | '/admin/login'
+    | '/api/doku-notification'
     | '/api/midtrans-notification'
     | '/product/$slug'
     | '/shop/$category'
@@ -333,6 +343,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/shipping'
     | '/admin/login'
+    | '/api/doku-notification'
     | '/api/midtrans-notification'
     | '/product/$slug'
     | '/shop/$category'
@@ -364,6 +375,7 @@ export interface FileRouteTypes {
     | '/admin/products'
     | '/admin/shipping'
     | '/admin_/login'
+    | '/api/doku-notification'
     | '/api/midtrans-notification'
     | '/product/$slug'
     | '/shop/$category'
@@ -390,6 +402,7 @@ export interface RootRouteChildren {
   ShopRoute: typeof ShopRouteWithChildren
   TermsRoute: typeof TermsRoute
   AdminLoginRoute: typeof AdminLoginRoute
+  ApiDokuNotificationRoute: typeof ApiDokuNotificationRoute
   ApiMidtransNotificationRoute: typeof ApiMidtransNotificationRoute
   ProductSlugRoute: typeof ProductSlugRoute
 }
@@ -527,6 +540,13 @@ declare module '@tanstack/react-router' {
       path: '/api/midtrans-notification'
       fullPath: '/api/midtrans-notification'
       preLoaderRoute: typeof ApiMidtransNotificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/doku-notification': {
+      id: '/api/doku-notification'
+      path: '/api/doku-notification'
+      fullPath: '/api/doku-notification'
+      preLoaderRoute: typeof ApiDokuNotificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin_/login': {
@@ -677,6 +697,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShopRoute: ShopRouteWithChildren,
   TermsRoute: TermsRoute,
   AdminLoginRoute: AdminLoginRoute,
+  ApiDokuNotificationRoute: ApiDokuNotificationRoute,
   ApiMidtransNotificationRoute: ApiMidtransNotificationRoute,
   ProductSlugRoute: ProductSlugRoute,
 }

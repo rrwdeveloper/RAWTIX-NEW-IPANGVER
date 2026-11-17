@@ -57,7 +57,7 @@ function AdminCategoriesPage() {
   };
 
   return (
-    <div className="space-y-4 max-w-xl">
+    <div className="space-y-6 max-w-4xl mx-auto pb-12">
       <div className="flex items-center justify-between">
         <h1 className="font-heading text-xl font-bold tracking-wider uppercase text-foreground">Kategori</h1>
         {!showAdd && (

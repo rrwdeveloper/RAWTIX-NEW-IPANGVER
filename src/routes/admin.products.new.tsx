@@ -51,7 +51,7 @@ function AdminNewProductPage() {
   });
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-4xl mx-auto pb-12 space-y-6">
       <h1 className="font-heading text-xl font-bold tracking-wider uppercase text-foreground">Tambah Produk</h1>
       <ProductForm
         initialData={signatureCategory ? {

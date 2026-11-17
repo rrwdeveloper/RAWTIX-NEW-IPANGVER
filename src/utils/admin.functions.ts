@@ -941,7 +941,28 @@ export const deleteCategory = createServerFn({ method: "POST" })
     return { success: true };
   });
 
-// ─── Shipping Rates ───
+// ─── Shipping Config & Rates ───
+export const getAdminShippingConfig = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => tokenSchema.parse(input))
+  .handler(async ({ data }) => {
+    await assertAdmin(data.token);
+    const key = process.env.KOMERCE_API_KEY || "";
+    const isConfigured = Boolean(key.trim().length > 0);
+    const maskedKey = isConfigured
+      ? `${key.slice(0, 4)}••••••••${key.slice(-4)}`
+      : "Belum diset di .env";
+
+    return {
+      provider: "RajaOngkir (Komerce API)",
+      endpoint: "https://rajaongkir.komerce.id/api/v1",
+      isConfigured,
+      maskedKey,
+      originId: 17567,
+      originDistrict: "Pejaten Barat, Pasar Minggu, Kota Jakarta Selatan",
+      couriers: ["JNE (REG, YES, OKE)"],
+    };
+  });
+
 export const getAdminShippingRates = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => tokenSchema.parse(input))
   .handler(async ({ data }) => {

@@ -40,6 +40,7 @@ function OrderSuccessPage() {
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [resumingPayment, setResumingPayment] = useState(false);
+  const [dokuModalOpen, setDokuModalOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const fetchOrder = useCallback(
@@ -66,8 +67,8 @@ function OrderSuccessPage() {
             } else if (data.status === "cancelled") {
               toast.error(
                 data.midtrans_status === "expire"
-                  ? "Pembayaran telah kedaluwarsa di Midtrans."
-                  : "Pembayaran dibatalkan atau ditolak di Midtrans."
+                  ? "Batas waktu pembayaran telah kedaluwarsa."
+                  : "Pembayaran dibatalkan atau ditolak."
               );
             } else {
               toast.info("Status pesanan saat ini: Menunggu Pembayaran.");
@@ -192,7 +193,7 @@ function OrderSuccessPage() {
         <div className="pt-[72px] flex flex-col items-center justify-center py-32 space-y-4">
           <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground tracking-wider uppercase text-xs">
-            Menyinkronkan status pesanan dari Midtrans...
+            Menyinkronkan status pesanan...
           </p>
         </div>
         <Footer />
@@ -403,6 +404,18 @@ function OrderSuccessPage() {
 
               {/* Action Buttons: Bayar Sekarang & Cek Status */}
               <div className="space-y-3 pt-2">
+                {/* 1. Jika URL Pembayaran DOKU tersedia */}
+                {orderData?.payment_proof_url && orderData.payment_proof_url.startsWith("http") && (
+                  <button
+                    onClick={() => setDokuModalOpen(true)}
+                    className="w-full py-3.5 text-xs tracking-[0.25em] uppercase bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Bayar Sekarang (Buka Pembayaran DOKU)
+                  </button>
+                )}
+
+                {/* 2. Jika Midtrans Snap Token tersedia */}
                 {orderData?.snap_token && (
                   <button
                     onClick={handleResumePayment}
@@ -410,7 +423,24 @@ function OrderSuccessPage() {
                     className="w-full py-3.5 text-xs tracking-[0.25em] uppercase bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
                   >
                     <ExternalLink className="w-4 h-4" />
-                    {resumingPayment ? "Membuka Pembayaran..." : "Bayar Sekarang (Buka Midtrans)"}
+                    {resumingPayment ? "Membuka Pembayaran..." : "Bayar Sekarang"}
+                  </button>
+                )}
+
+                {/* 3. Fallback jika token/url belum tersimpan di DB namun pesanan masih pending */}
+                {!orderData?.snap_token && (!orderData?.payment_proof_url || !orderData.payment_proof_url.startsWith("http")) && (
+                  <button
+                    onClick={() => {
+                      if (orderData?.snap_token) {
+                        handleResumePayment();
+                      } else {
+                        fetchOrder(true);
+                      }
+                    }}
+                    className="w-full py-3.5 text-xs tracking-[0.25em] uppercase bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Bayar Sekarang
                   </button>
                 )}
 
@@ -428,7 +458,7 @@ function OrderSuccessPage() {
               <div className="border border-amber-500/30 bg-amber-500/5 p-4 flex gap-3 items-start">
                 <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  Pesanan hanya akan diproses setelah pembayaran berhasil diverifikasi oleh Midtrans. Sistem melakukan sinkronisasi otomatis setiap beberapa detik.
+                  Pesanan hanya akan diproses setelah pembayaran berhasil diverifikasi. Sistem melakukan sinkronisasi otomatis setiap beberapa detik.
                 </p>
               </div>
             </div>
@@ -480,6 +510,43 @@ function OrderSuccessPage() {
         </div>
       </main>
       <Footer />
+
+      {/* DOKU Payment Modal */}
+      {dokuModalOpen && orderData?.payment_proof_url && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="relative bg-card border border-border w-full max-w-lg rounded-sm shadow-2xl overflow-hidden flex flex-col" style={{ height: 'min(85vh, 700px)' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
+              <span className="text-xs tracking-[0.2em] uppercase font-medium text-foreground">
+                Pembayaran DOKU
+              </span>
+              <button
+                onClick={() => setDokuModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            {/* Iframe */}
+            <iframe
+              src={orderData.payment_proof_url}
+              className="flex-1 w-full border-0"
+              title="DOKU Checkout"
+            />
+            {/* Footer */}
+            <div className="px-4 py-2.5 border-t border-border bg-background text-center">
+              <a
+                href={orderData.payment_proof_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[10px] tracking-wider uppercase text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Buka di tab baru ↗
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
