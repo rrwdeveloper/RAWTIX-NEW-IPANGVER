@@ -83,25 +83,4 @@ test.describe("Admin Backend & Security E2E Tests", () => {
     expect(bodyString).not.toContain("DOKU_SECRET_KEY");
     expect(bodyString).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
-
-  test("Direct POST to Midtrans webhook without valid signature is rejected (401/400/503)", async ({
-    request,
-  }) => {
-    const response = await request.post("/api/midtrans-notification", {
-      headers: { "Content-Type": "application/json" },
-      data: {
-        order_id: "RTX-FAKE-02",
-        status_code: "200",
-        gross_amount: "150000.00",
-        signature_key: "invalid-signature-key-12345",
-      },
-    });
-
-    // Must be rejected, never 200
-    expect([400, 401, 503]).toContain(response.status());
-    const body = await response.json();
-    const bodyString = JSON.stringify(body);
-    expect(bodyString).not.toContain("MIDTRANS_SERVER_KEY");
-    expect(bodyString).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
-  });
 });

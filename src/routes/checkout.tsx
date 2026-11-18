@@ -309,36 +309,11 @@ function CheckoutPage() {
 
       clearCart();
 
-      // Trigger Midtrans Snap
-      if (result.snapToken && window.snap) {
-        window.snap.pay(result.snapToken, {
-          onSuccess: function () {
-            updateStoredOrderStatus(result.orderNumber, "paid");
-            toast.success("Pembayaran berhasil diterima!");
-            navigate({ to: "/order-success", search: { order: result.orderNumber } });
-          },
-          onPending: function () {
-            updateStoredOrderStatus(result.orderNumber, "pending");
-            toast.info("Pesanan dibuat. Silakan selesaikan pembayaran.");
-            navigate({ to: "/order-success", search: { order: result.orderNumber } });
-          },
-          onError: function () {
-            updateStoredOrderStatus(result.orderNumber, "cancelled");
-            toast.error("Pembayaran ditolak atau terjadi kendala.");
-            navigate({ to: "/order-success", search: { order: result.orderNumber } });
-          },
-          onClose: function () {
-            updateStoredOrderStatus(result.orderNumber, "pending");
-            toast.info("Popup pembayaran ditutup. Anda dapat melanjutkan pembayaran kapan saja di menu Pesanan.");
-            navigate({ to: "/order-success", search: { order: result.orderNumber } });
-          }
-        });
+      // Redirect to DOKU payment page or order success
+      if (result.redirectUrl) {
+        window.location.href = result.redirectUrl;
       } else {
-        if (result.redirectUrl) {
-          window.location.href = result.redirectUrl;
-        } else {
-          navigate({ to: "/order-success", search: { order: result.orderNumber } });
-        }
+        navigate({ to: "/order-success", search: { order: result.orderNumber } });
       }
     } catch (err) {
       console.error("Order error:", err);

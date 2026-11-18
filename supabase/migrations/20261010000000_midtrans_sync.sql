@@ -1,6 +1,6 @@
 -- =============================================================================
--- RAWTIX — Midtrans Payment Gateway Status Synchronization
--- Migration: 20261010000000_midtrans_sync.sql
+-- RAWTIX — Payment Gateway Status Synchronization
+-- Migration: 20261010000000_payment_sync.sql
 -- =============================================================================
 
 CREATE OR REPLACE FUNCTION public.sync_order_payment_status(

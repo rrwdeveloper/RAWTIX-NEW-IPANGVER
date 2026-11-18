@@ -89,7 +89,7 @@ function AdminOrderDetailPage() {
         </span>
       </div>
 
-      {/* Status Actions & Midtrans Sync */}
+      {/* Status Actions & Payment Sync */}
       <div className="flex flex-wrap items-center gap-2">
         {availableActions.map((action) => (
           <div key={action.to}>
@@ -129,8 +129,8 @@ function AdminOrderDetailPage() {
         >
           <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? "animate-spin" : ""}`} />
           {syncMutation.isPending
-            ? `Memeriksa ${order.payment_method === "doku" ? "DOKU" : "Gateway"}...`
-            : `Sinkronkan Status ${order.payment_method === "doku" ? "DOKU" : "Pembayaran"}`}
+            ? "Memeriksa DOKU..."
+            : "Sinkronkan Status DOKU"}
         </button>
       </div>
 
@@ -163,23 +163,17 @@ function AdminOrderDetailPage() {
           <InfoRow label="Total" value={`Rp ${order.total.toLocaleString("id-ID")}`} />
           {order.shipping_tracking && <InfoRow label="Resi" value={order.shipping_tracking} />}
           <InfoRow
-            label="Bukti / Token"
+            label="Bukti Pembayaran"
             value={
               order.payment_proof_url ? (
-                order.payment_proof_url.startsWith("midtrans_snap:") ? (
-                  <span className="font-mono text-xs text-amber-400 break-all">
-                    Midtrans Snap Token: {order.payment_proof_url.replace("midtrans_snap:", "")}
-                  </span>
-                ) : (
-                  <a
-                    href={order.payment_proof_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
-                  >
-                    Lihat Bukti <ExternalLink className="w-3 h-3" />
-                  </a>
-                )
+                <a
+                  href={order.payment_proof_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 inline-flex items-center gap-1"
+                >
+                  Lihat Bukti <ExternalLink className="w-3 h-3" />
+                </a>
               ) : "Belum ada"
             }
           />
@@ -189,8 +183,8 @@ function AdminOrderDetailPage() {
         </div>
       </div>
 
-      {/* Payment proof preview (hanya jika gambar asli) */}
-      {order.payment_proof_url && !order.payment_proof_url.startsWith("midtrans_snap:") && (
+      {/* Payment proof preview */}
+      {order.payment_proof_url && order.payment_proof_url.startsWith("http") && (
         <div className="border border-border p-4">
           <h2 className="text-xs tracking-wider uppercase text-muted-foreground mb-3">Preview Bukti Pembayaran</h2>
           <a href={order.payment_proof_url} target="_blank" rel="noopener noreferrer">

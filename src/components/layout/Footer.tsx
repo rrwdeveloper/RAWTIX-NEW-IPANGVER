@@ -35,39 +35,6 @@ export function Footer() {
 
   return (
     <footer className="border-t border-border mt-20 bg-background">
-      {/* Payment Methods Section (matching Saint P screenshot 5) */}
-      <div className="px-6 md:px-12 py-10 border-b border-border">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.25em] text-foreground/80 mb-6">
-          Metode Pembayaran
-        </p>
-        <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-          {[
-            { name: "BCA", desc: "Bank Central Asia" },
-            { name: "Mandiri", desc: "Bank Mandiri" },
-            { name: "BNI", desc: "Bank Negara Indonesia" },
-            { name: "BRI", desc: "Bank Rakyat Indonesia" },
-            { name: "QRIS", desc: "Quick Response Code Indonesia Standard", highlight: true },
-            { name: "GoPay", desc: "GoPay Wallet" },
-            { name: "OVO", desc: "OVO Payment" },
-            { name: "ShopeePay", desc: "ShopeePay" },
-            { name: "Visa", desc: "Visa International" },
-            { name: "Mastercard", desc: "Mastercard" },
-          ].map((item) => (
-            <div
-              key={item.name}
-              title={item.desc}
-              className={`flex items-center justify-center px-3.5 py-2 rounded-xs border text-xs font-semibold tracking-wider uppercase transition-colors ${
-                item.highlight
-                  ? "border-foreground/40 bg-secondary text-foreground"
-                  : "border-border bg-card/60 text-muted-foreground hover:text-foreground hover:border-foreground/30"
-              }`}
-            >
-              {item.name}
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div className="px-6 md:px-12 py-12 space-y-12">
         {/* Top: Newsletter + Brand Bio + Contact */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10">

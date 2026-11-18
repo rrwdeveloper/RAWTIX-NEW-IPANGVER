@@ -9,21 +9,6 @@ import { Check, Clock, X, RefreshCw, Copy, CheckCheck, AlertCircle, CreditCard, 
 import { toast } from "sonner";
 import { saveOrderToHistory, updateStoredOrderStatus } from "@/lib/orderStorage";
 
-declare global {
-  interface Window {
-    snap?: {
-      pay: (
-        token: string,
-        options?: {
-          onSuccess?: (result: unknown) => void;
-          onPending?: (result: unknown) => void;
-          onError?: (result: unknown) => void;
-          onClose?: () => void;
-        }
-      ) => void;
-    };
-  }
-}
 
 const searchSchema = z.object({
   order: z.string().optional(),
@@ -39,7 +24,6 @@ function OrderSuccessPage() {
   const [orderData, setOrderData] = useState<DetailedOrderResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
-  const [resumingPayment, setResumingPayment] = useState(false);
   const [dokuModalOpen, setDokuModalOpen] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
@@ -66,7 +50,7 @@ function OrderSuccessPage() {
               toast.success("Pembayaran terkonfirmasi! Pesanan lunas.");
             } else if (data.status === "cancelled") {
               toast.error(
-                data.midtrans_status === "expire"
+                data.expiry_time && new Date(data.expiry_time).getTime() <= Date.now()
                   ? "Batas waktu pembayaran telah kedaluwarsa."
                   : "Pembayaran dibatalkan atau ditolak."
               );
@@ -153,7 +137,7 @@ function OrderSuccessPage() {
                   toast.success("Pembayaran Anda berhasil terverifikasi!");
                 } else if (fresh.status === "cancelled") {
                   toast.error(
-                    fresh.midtrans_status === "expire"
+                    fresh.expiry_time && new Date(fresh.expiry_time).getTime() <= Date.now()
                       ? "Batas waktu pembayaran telah kedaluwarsa."
                       : "Status pembayaran berubah menjadi dibatalkan/kedaluwarsa."
                   );
@@ -174,45 +158,6 @@ function OrderSuccessPage() {
     setCopiedKey(key);
     toast.success("Tersalin ke papan klip");
     setTimeout(() => setCopiedKey(null), 2500);
-  };
-
-  const handleResumePayment = () => {
-    if (!orderData?.snap_token) {
-      toast.error("Token pembayaran tidak ditemukan. Silakan hubungi admin atau pesan ulang.");
-      return;
-    }
-
-    if (!window.snap) {
-      toast.error("Modul pembayaran Midtrans sedang dimuat. Silakan coba lagi.");
-      return;
-    }
-
-    setResumingPayment(true);
-    window.snap.pay(orderData.snap_token, {
-      onSuccess: () => {
-        setResumingPayment(false);
-        updateStoredOrderStatus(orderData.order_number, "paid");
-        toast.success("Pembayaran berhasil!");
-        fetchOrder(false);
-      },
-      onPending: () => {
-        setResumingPayment(false);
-        updateStoredOrderStatus(orderData.order_number, "pending");
-        toast.info("Menunggu pembayaran diselesaikan.");
-        fetchOrder(false);
-      },
-      onError: () => {
-        setResumingPayment(false);
-        updateStoredOrderStatus(orderData.order_number, "cancelled");
-        toast.error("Pembayaran ditolak atau terjadi kendala.");
-        fetchOrder(false);
-      },
-      onClose: () => {
-        setResumingPayment(false);
-        toast.info("Popup pembayaran ditutup.");
-        fetchOrder(false);
-      },
-    });
   };
 
   if (!orderNumber) {
@@ -254,8 +199,8 @@ function OrderSuccessPage() {
   const isPaid = orderData?.status === "paid";
   const isCancelled = orderData?.status === "cancelled";
   const isExpired =
-    orderData?.midtrans_status === "expire" ||
-    (orderData?.expiry_time ? isCancelled && new Date(orderData.expiry_time).getTime() <= Date.now() : false);
+    isCancelled &&
+    (orderData?.expiry_time ? new Date(orderData.expiry_time).getTime() <= Date.now() : true);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -471,8 +416,8 @@ function OrderSuccessPage() {
 
               {/* Action Buttons: Bayar Sekarang & Cek Status */}
               <div className="space-y-3 pt-2">
-                {/* 1. Jika URL Pembayaran DOKU tersedia */}
-                {orderData?.payment_proof_url && orderData.payment_proof_url.startsWith("http") && (
+                {/* 1. Tombol Bayar Sekarang (Buka Pembayaran DOKU) */}
+                {orderData?.payment_proof_url && orderData.payment_proof_url.startsWith("http") ? (
                   <button
                     onClick={() => setDokuModalOpen(true)}
                     className="w-full py-3.5 text-xs tracking-[0.25em] uppercase bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 shadow-sm"
@@ -480,30 +425,9 @@ function OrderSuccessPage() {
                     <ExternalLink className="w-4 h-4" />
                     Bayar Sekarang (Buka Pembayaran DOKU)
                   </button>
-                )}
-
-                {/* 2. Jika Midtrans Snap Token tersedia */}
-                {orderData?.snap_token && (
+                ) : (
                   <button
-                    onClick={handleResumePayment}
-                    disabled={resumingPayment}
-                    className="w-full py-3.5 text-xs tracking-[0.25em] uppercase bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                    {resumingPayment ? "Membuka Pembayaran..." : "Bayar Sekarang"}
-                  </button>
-                )}
-
-                {/* 3. Fallback jika token/url belum tersimpan di DB namun pesanan masih pending */}
-                {!orderData?.snap_token && (!orderData?.payment_proof_url || !orderData.payment_proof_url.startsWith("http")) && (
-                  <button
-                    onClick={() => {
-                      if (orderData?.snap_token) {
-                        handleResumePayment();
-                      } else {
-                        fetchOrder(true);
-                      }
-                    }}
+                    onClick={() => fetchOrder(true)}
                     className="w-full py-3.5 text-xs tracking-[0.25em] uppercase bg-amber-500 text-black font-bold hover:bg-amber-400 transition-colors flex items-center justify-center gap-2 shadow-sm"
                   >
                     <ExternalLink className="w-4 h-4" />

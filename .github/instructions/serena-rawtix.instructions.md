@@ -11,4 +11,4 @@ applyTo: "src/**/*.{ts,tsx}"
 - Prefer the smallest symbol-level edit that preserves existing TanStack Router, React, Supabase, and Cloudflare conventions.
 - Preserve strict TypeScript typing, path aliases using `@/`, existing error handling, and user-visible localization/style patterns.
 - After edits, inspect the changed symbols and run the narrowest relevant repository validation (`npm run lint`, `npm run build`, or a focused test command when available).
-- Never place credentials, Supabase keys, Midtrans secrets, or other environment values in source, instructions, or MCP configuration.
+- Never place credentials, Supabase keys, DOKU secrets, or other environment values in source, instructions, or MCP configuration.

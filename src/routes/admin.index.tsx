@@ -225,7 +225,7 @@ function AdminDashboard() {
         { month: "Pkl 18.00 - 21.00", revenue: 1299000, orders: 1, isPeak: true },
       ],
       paymentMethodShare: [
-        { name: "Midtrans Payment Gateway", percentage: 67, amount: 2598000 },
+        { name: "DOKU Payment Gateway", percentage: 67, amount: 2598000 },
         { name: "Direct Bank Transfer", percentage: 33, amount: 1299000 },
       ],
       topProducts: [
@@ -251,7 +251,7 @@ function AdminDashboard() {
         { month: "16 Nov 2026", revenue: 5196000, orders: 4, isPeak: true },
       ],
       paymentMethodShare: [
-        { name: "Midtrans Payment Gateway", percentage: 74, amount: 17302680 },
+        { name: "DOKU Payment Gateway", percentage: 74, amount: 17302680 },
         { name: "Direct Bank Transfer", percentage: 26, amount: 6079320 },
       ],
       topProducts: [
@@ -277,7 +277,7 @@ function AdminDashboard() {
         { month: "Minggu 4 (22-28 Nov)", revenue: 8757000, orders: 7 },
       ],
       paymentMethodShare: [
-        { name: "Midtrans Payment Gateway", percentage: 71, amount: 39658470 },
+        { name: "DOKU Payment Gateway", percentage: 71, amount: 39658470 },
         { name: "Direct Bank Transfer", percentage: 29, amount: 16198530 },
       ],
       topProducts: [
@@ -865,7 +865,7 @@ function AdminDashboard() {
                   <div className="mt-6 p-3.5 rounded-lg bg-[rgba(245,184,0,0.08)] border border-[#F5B800]/25 flex items-start gap-3">
                     <Info className="w-4 h-4 text-[#F5B800] flex-shrink-0 mt-0.5" />
                     <p className="text-[11px] leading-relaxed text-amber-200/90 font-normal">
-                      Midtrans menyerap mayoritas pembayaran otomatis via QRIS &amp; Virtual Account tanpa perlu verifikasi manual.
+                      DOKU menyerap mayoritas pembayaran otomatis via QRIS, Virtual Account &amp; E-Wallet tanpa perlu verifikasi manual.
                     </p>
                   </div>
                 </section>

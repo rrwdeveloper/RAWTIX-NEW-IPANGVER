@@ -14,7 +14,7 @@ Use this skill when a task needs codebase understanding or a coordinated change 
 1. Confirm the task scope and identify the route, component, hook, utility, or integration involved.
 2. Use Serena's symbol-aware inspection to get an overview of the relevant file and locate the target definition.
 3. Find references and callers before changing exported symbols, shared hooks, routes, database helpers, or order flows.
-4. Trace the smallest complete path through UI, state, data access, and error handling. Treat Supabase and Midtrans responses as untrusted input.
+4. Trace the smallest complete path through UI, state, data access, and error handling. Treat Supabase and DOKU responses as untrusted input.
 5. Make the smallest coherent edit. Prefer symbol-level operations when available; preserve existing names, types, and module boundaries unless the task requires otherwise.
 6. Re-inspect changed symbols and their references. Check for stale imports, route-tree implications, and changed response shapes.
 7. Run the narrowest useful verification:

@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
-import { checkMidtransStatusDirect } from "./orders.functions";
 import {
   checkDokuOrderStatus,
   calculateDokuExpiry,
@@ -192,7 +191,7 @@ export const getAdminDashboardStats = createServerFn({ method: "POST" })
           { month: "Nov", revenue: finalRevenue, orders: finalPaidCount },
         ],
         paymentMethodShare: [
-          { name: "Midtrans Payment Gateway", percentage: 68, amount: Math.round(finalRevenue * 0.68) },
+          { name: "DOKU Payment Gateway", percentage: 68, amount: Math.round(finalRevenue * 0.68) },
           { name: "Direct Bank Transfer", percentage: 32, amount: Math.round(finalRevenue * 0.32) },
         ],
         topProducts: [
@@ -558,9 +557,8 @@ export interface AdminSyncPaymentResult {
   orderNumber: string;
   previousStatus: OrderStatus;
   currentStatus: OrderStatus;
-  gateway: "doku" | "midtrans";
+  gateway: "doku";
   gatewayStatus: string;
-  midtransStatus: string;
   paymentType: string;
   updated: boolean;
   details: Record<string, string | number | boolean>;
@@ -580,53 +578,30 @@ export const syncPaymentStatusForAdmin = createServerFn({ method: "POST" })
     if (fetchErr || !order) throw new Error("Pesanan tidak ditemukan");
 
     const currentStatus = order.status as OrderStatus;
-    const isDoku =
-      order.payment_method === "doku" ||
-      (order.payment_reference && order.payment_reference.includes("doku.com"));
-
     let updated = false;
     let targetStatus: OrderStatus = currentStatus;
-    const gateway = isDoku ? "doku" : "midtrans";
+    const gateway = "doku" as const;
     let statusLabel = "";
-    let paymentChannel = order.payment_method || (isDoku ? "doku" : "midtrans");
-    let rawResult: unknown = null;
+    let paymentChannel = order.payment_method || "doku";
 
-    if (isDoku) {
-      const dokuResult = await checkDokuOrderStatus(order.order_number);
-      const expiryInfo = calculateDokuExpiry(order.created_at, 60);
-      rawResult = dokuResult;
-      statusLabel = dokuResult.transactionStatus;
+    const dokuResult = await checkDokuOrderStatus(order.order_number);
+    const expiryInfo = calculateDokuExpiry(order.created_at, 60);
+    statusLabel = dokuResult.transactionStatus;
 
-      if (dokuResult.paymentType) {
-        paymentChannel = dokuResult.paymentType;
-      }
+    if (dokuResult.paymentType) {
+      paymentChannel = dokuResult.paymentType;
+    }
 
-      if (dokuResult.effectiveStatus === "paid") {
-        targetStatus = "paid";
-      } else if (dokuResult.effectiveStatus === "cancelled") {
-        targetStatus = "cancelled";
-      } else if (currentStatus === "pending" && expiryInfo.isExpired) {
-        // Expiry fallback: payment due date (60 min) has passed
-        targetStatus = "cancelled";
-        statusLabel = "EXPIRED";
-      } else {
-        targetStatus = currentStatus;
-      }
+    if (dokuResult.effectiveStatus === "paid") {
+      targetStatus = "paid";
+    } else if (dokuResult.effectiveStatus === "cancelled") {
+      targetStatus = "cancelled";
+    } else if (currentStatus === "pending" && expiryInfo.isExpired) {
+      // Expiry fallback: payment due date (60 min) has passed
+      targetStatus = "cancelled";
+      statusLabel = "EXPIRED";
     } else {
-      const midtransResult = await checkMidtransStatusDirect(order.order_number);
-      rawResult = midtransResult;
-      statusLabel = midtransResult.transactionStatus;
-
-      if (midtransResult.paymentType) {
-        paymentChannel = midtransResult.paymentType;
-      }
-
-      if (
-        midtransResult.effectiveStatus !== "pending" ||
-        (midtransResult.transactionStatus !== "not_selected" && midtransResult.transactionStatus !== "error")
-      ) {
-        targetStatus = midtransResult.effectiveStatus;
-      }
+      targetStatus = currentStatus;
     }
 
     // Terminal state protection: prevent automated sync from downgrading paid/processing/shipped/delivered orders
@@ -714,15 +689,12 @@ export const syncPaymentStatusForAdmin = createServerFn({ method: "POST" })
       currentStatus: updated ? targetStatus : currentStatus,
       gateway,
       gatewayStatus: statusLabel,
-      midtransStatus: statusLabel, // backward compatibility
       paymentType: paymentChannel,
       updated,
       details: {} as Record<string, string | number | boolean>,
     };
   });
 
-// Backward-compatible alias
-export const syncMidtransOrderForAdmin = syncPaymentStatusForAdmin;
 
 // ─── Products ───
 export const getAdminProducts = createServerFn({ method: "POST" })

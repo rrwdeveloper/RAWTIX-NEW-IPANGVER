@@ -659,7 +659,7 @@ function HomePage() {
           {/* Postcard Testimonials Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
             
-            {/* Postcard 1: Rizky Pratama */}
+            {/* Postcard 1: Rifki Hiza */}
             <div className="relative p-6 sm:p-7 rounded-sm border border-border bg-card/60 shadow-sm flex flex-col justify-between overflow-hidden">
               {/* Airmail Postal Postmark Stamp */}
               <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-60">
@@ -677,14 +677,14 @@ function HomePage() {
                 {/* User Info */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-9 h-9 rounded-full bg-neutral-800 text-white flex items-center justify-center text-xs font-bold tracking-wider border border-border">
-                    RP
+                    RH
                   </div>
                   <div>
                     <h4 className="text-xs font-semibold tracking-wide text-foreground">
-                      Rizky Pratama
+                      Rifki Hiza
                     </h4>
                     <p className="text-[11px] text-muted-foreground">
-                      @atlantastore2024
+                      @rifkihf_
                     </p>
                   </div>
                 </div>
@@ -714,7 +714,7 @@ function HomePage() {
               </div>
             </div>
 
-            {/* Postcard 2: Rifaldi Maulana */}
+            {/* Postcard 2: Satya Wira */}
             <div className="relative p-6 sm:p-7 rounded-sm border border-border bg-card/60 shadow-sm flex flex-col justify-between overflow-hidden">
               {/* Airmail Postal Postmark Stamp */}
               <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-60">
@@ -732,14 +732,14 @@ function HomePage() {
                 {/* User Info */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-9 h-9 rounded-full bg-neutral-800 text-white flex items-center justify-center text-xs font-bold tracking-wider border border-border">
-                    RM
+                    SW
                   </div>
                   <div>
                     <h4 className="text-xs font-semibold tracking-wide text-foreground">
-                      Rifaldi Maulana
+                      Satya Wira
                     </h4>
                     <p className="text-[11px] text-muted-foreground">
-                      @rifaldi.maulana
+                      @wiraa.satya
                     </p>
                   </div>
                 </div>
@@ -769,7 +769,7 @@ function HomePage() {
               </div>
             </div>
 
-            {/* Postcard 3: Deviana Rachma Cholida (with Polaroid Photo like Saint P Screenshot 5) */}
+            {/* Postcard 3: Reyvanzi Ibrahim */}
             <div className="relative p-6 sm:p-7 rounded-sm border border-border bg-card/60 shadow-sm flex flex-col justify-between overflow-hidden">
               {/* Airmail Postal Postmark Stamp */}
               <div className="absolute top-4 right-4 flex items-center gap-1.5 opacity-60">
@@ -782,14 +782,14 @@ function HomePage() {
                 {/* User Info */}
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-9 h-9 rounded-full bg-neutral-800 text-white flex items-center justify-center text-xs font-bold tracking-wider border border-border">
-                    DR
+                    RI
                   </div>
                   <div>
                     <h4 className="text-xs font-semibold tracking-wide text-foreground">
-                      Deviana Rachma Cholida
+                      Reyvanzi Ibrahim
                     </h4>
                     <p className="text-[11px] text-muted-foreground">
-                      @ecreanaived
+                      @reyvanzibr
                     </p>
                   </div>
                 </div>
@@ -811,7 +811,7 @@ function HomePage() {
                   <div className="w-18 shrink-0 bg-white p-1 rounded-2xs shadow-md border border-neutral-300 -rotate-3 hover:rotate-0 transition-transform">
                     <img
                       src={editorialVintage}
-                      alt="Deviana wearing RAWTIX"
+                      alt="Reyvanzi wearing RAWTIX"
                       className="w-full h-18 object-cover object-top"
                     />
                     <p className="text-[7px] text-center text-neutral-800 font-mono mt-0.5 tracking-tighter">

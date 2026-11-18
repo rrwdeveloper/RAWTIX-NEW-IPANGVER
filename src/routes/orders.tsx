@@ -387,7 +387,7 @@ function OrdersPage() {
                         onClick={() => handleSyncStatus(order.orderNumber)}
                         disabled={isSyncing}
                         className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors disabled:opacity-50"
-                        title="Periksa status live terkini dari Midtrans"
+                        title="Periksa status live terkini pembayaran"
                       >
                         <RefreshCw
                           className={`w-3 h-3 ${isSyncing ? "animate-spin text-amber-400" : ""}`}

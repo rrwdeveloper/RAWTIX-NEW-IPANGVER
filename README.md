@@ -16,11 +16,11 @@ cp .env.example .env
 npm run dev
 ```
 
-Fill `.env` with the values from the shared Supabase, Midtrans, and Komerce
+Fill `.env` with the values from the shared Supabase, DOKU, and Komerce
 projects before testing authentication, admin, checkout, or payment flows.
 
-The public Supabase URL, publishable key, and Midtrans client key are used by
-the browser. `SUPABASE_SERVICE_ROLE_KEY`, `MIDTRANS_SERVER_KEY`, and
+The public Supabase URL and publishable key are used by
+the browser. `SUPABASE_SERVICE_ROLE_KEY`, `DOKU_SECRET_KEY`, and
 `KOMERCE_API_KEY` are server-only secrets and must never use a `VITE_` prefix,
 be committed, or be shared in chat.
 
