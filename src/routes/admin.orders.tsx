@@ -160,7 +160,7 @@ function AdminOrdersPage() {
 
   // Quick Status Update Mutation
   const updateStatusMutation = useMutation({
-    mutationFn: ({ orderId, newStatus }: { orderId: string; newStatus: any }) =>
+    mutationFn: ({ orderId, newStatus }: { orderId: string; newStatus: OrderRecord["status"] }) =>
       updateOrderStatus({
         data: {
           token: token!,
@@ -174,8 +174,8 @@ function AdminOrdersPage() {
       setActiveRowMenu(null);
       toast.success(`Status pesanan berhasil diubah menjadi "${vars.newStatus}"`);
     },
-    onError: (err: any) => {
-      toast.error(err?.message || "Gagal mengubah status pesanan");
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Gagal mengubah status pesanan");
     },
   });
 

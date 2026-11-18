@@ -167,7 +167,7 @@ function CheckoutPage() {
       active = false;
       clearTimeout(timer);
     };
-  }, [searchQuery]);
+  }, [searchQuery, searchDestinationFn]);
 
   const selectDestination = async (opt: DestinationOption) => {
     setSearchQuery(opt.label);

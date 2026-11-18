@@ -88,6 +88,8 @@ function OrderSuccessPage() {
     [orderNumber]
   );
 
+  const [countdownText, setCountdownText] = useState<string | null>(null);
+
   // Initial load
   useEffect(() => {
     if (!orderNumber) {
@@ -97,28 +99,75 @@ function OrderSuccessPage() {
     fetchOrder(false);
   }, [orderNumber, fetchOrder]);
 
-  // Polling otomatis setiap 8 detik jika status masih pending
+  // Live countdown timer for active pending payment
   useEffect(() => {
-    if (!orderNumber || !orderData || orderData.status !== "pending") return;
+    if (!orderData?.expiry_time || orderData.status !== "pending") {
+      setCountdownText(null);
+      return;
+    }
+
+    const expiryMs = new Date(orderData.expiry_time).getTime();
+    if (isNaN(expiryMs)) return;
+
+    const updateCountdown = () => {
+      const remainingSeconds = Math.max(0, Math.floor((expiryMs - Date.now()) / 1000));
+      if (remainingSeconds <= 0) {
+        setCountdownText("Waktu Habis");
+        // Automatically sync to update status to expired on client
+        fetchOrder(false);
+      } else {
+        const mins = Math.floor(remainingSeconds / 60);
+        const secs = remainingSeconds % 60;
+        setCountdownText(`${mins}m ${secs < 10 ? "0" : ""}${secs}s`);
+      }
+    };
+
+    updateCountdown();
+    const timer = setInterval(updateCountdown, 1000);
+    return () => clearInterval(timer);
+  }, [orderData?.expiry_time, orderData?.status, fetchOrder]);
+
+  const isOrderPending = orderData?.status === "pending";
+
+  // Bounded polling if pending; stops immediately on terminal states (paid/cancelled)
+  useEffect(() => {
+    if (!orderNumber || !isOrderPending) return;
+
+    let pollCount = 0;
+    const maxPolls = 60; // 60 cycles (~8 mins active polling)
 
     const interval = setInterval(() => {
+      pollCount++;
+      if (pollCount > maxPolls) {
+        clearInterval(interval);
+        return;
+      }
+
       getOrderByNumber({ data: { orderNumber } })
         .then((fresh) => {
-          if (fresh && fresh.status !== orderData.status) {
-            setOrderData(fresh);
-            updateStoredOrderStatus(fresh.order_number, fresh.status);
-            if (fresh.status === "paid") {
-              toast.success("Pembayaran Anda berhasil terverifikasi!");
-            } else if (fresh.status === "cancelled") {
-              toast.error("Status pembayaran berubah menjadi dibatalkan/kedaluwarsa.");
-            }
+          if (fresh) {
+            setOrderData((prev) => {
+              if (prev && fresh.status !== prev.status) {
+                updateStoredOrderStatus(fresh.order_number, fresh.status);
+                if (fresh.status === "paid") {
+                  toast.success("Pembayaran Anda berhasil terverifikasi!");
+                } else if (fresh.status === "cancelled") {
+                  toast.error(
+                    fresh.midtrans_status === "expire"
+                      ? "Batas waktu pembayaran telah kedaluwarsa."
+                      : "Status pembayaran berubah menjadi dibatalkan/kedaluwarsa."
+                  );
+                }
+              }
+              return fresh;
+            });
           }
         })
         .catch(() => {});
     }, 8000);
 
     return () => clearInterval(interval);
-  }, [orderNumber, orderData]);
+  }, [orderNumber, isOrderPending]);
 
   const handleCopy = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
@@ -204,7 +253,9 @@ function OrderSuccessPage() {
   const isPending = !orderData || orderData.status === "pending";
   const isPaid = orderData?.status === "paid";
   const isCancelled = orderData?.status === "cancelled";
-  const isExpired = orderData?.midtrans_status === "expire";
+  const isExpired =
+    orderData?.midtrans_status === "expire" ||
+    (orderData?.expiry_time ? isCancelled && new Date(orderData.expiry_time).getTime() <= Date.now() : false);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -305,8 +356,24 @@ function OrderSuccessPage() {
             {/* Batas Waktu jika ada */}
             {orderData?.expiry_time && isPending && (
               <div className="flex justify-between items-center text-sm pt-1">
-                <span className="text-muted-foreground text-xs uppercase tracking-wider">Batas Waktu Bayar</span>
-                <span className="text-xs text-amber-400 font-mono">{orderData.expiry_time}</span>
+                <span className="text-muted-foreground text-xs uppercase tracking-wider flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                  Batas Waktu Bayar
+                </span>
+                <span className="text-xs text-amber-400 font-mono font-medium">
+                  {countdownText ? (
+                    <span className="bg-amber-500/10 px-2 py-0.5 border border-amber-500/30">
+                      Sisa: {countdownText}
+                    </span>
+                  ) : (
+                    new Date(orderData.expiry_time).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  )}
+                </span>
               </div>
             )}
           </div>

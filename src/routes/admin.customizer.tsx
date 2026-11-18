@@ -89,8 +89,8 @@ function AdminCustomizerPage() {
         .getPublicUrl(filePath);
 
       setForm((prev) => ({ ...prev, background_image: publicUrl }));
-    } catch (err: any) {
-      setUploadError(err.message || "Gagal mengunggah foto");
+    } catch (err: unknown) {
+      setUploadError(err instanceof Error ? err.message : "Gagal mengunggah foto");
     } finally {
       setUploading(false);
     }

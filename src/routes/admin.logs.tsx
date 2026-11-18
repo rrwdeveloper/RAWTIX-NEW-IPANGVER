@@ -38,7 +38,7 @@ interface UserLogItem {
   action: string;
   entity: string;
   description: string | null;
-  details: Record<string, any> | null;
+  details: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -228,7 +228,7 @@ function AdminLogsPage() {
     return labels[key] || key.replace(/_/g, " ");
   };
 
-  const formatDetailValue = (key: string, val: any): string => {
+  const formatDetailValue = (key: string, val: unknown): string => {
     if (typeof val === "boolean") return val ? "Ya / Aktif" : "Tidak / Nonaktif";
     if (key === "amount" || key === "price") {
       return `Rp ${Number(val).toLocaleString("id-ID")}`;

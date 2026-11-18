@@ -137,6 +137,14 @@ function ProductDetailPage() {
       toast.error("Pilih ukuran terlebih dahulu");
       return;
     }
+    if (!isSoldOut && !isPreorder && selectedVariant.stock <= 0) {
+      toast.error("Stok habis untuk ukuran ini");
+      return;
+    }
+    if (!isSoldOut && !isPreorder && quantity > selectedVariant.stock) {
+      toast.error(`Jumlah melebihi stok yang tersedia (${selectedVariant.stock})`);
+      return;
+    }
     addItem({
       productId: product.id,
       variantId: selectedVariant.id,
@@ -248,8 +256,16 @@ function ProductDetailPage() {
                   </button>
                   <span className="px-4 text-sm min-w-[40px] text-center">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="p-2 hover:bg-secondary transition-colors"
+                    onClick={() => {
+                      const maxStock = selectedVariant && !isPreorder ? selectedVariant.stock : 99;
+                      if (quantity < maxStock) {
+                        setQuantity(quantity + 1);
+                      } else {
+                        toast.info(`Batas stok tersedia untuk ukuran ini: ${maxStock}`);
+                      }
+                    }}
+                    disabled={selectedVariant && !isPreorder ? quantity >= selectedVariant.stock : false}
+                    className="p-2 hover:bg-secondary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-3 h-3" />
                   </button>

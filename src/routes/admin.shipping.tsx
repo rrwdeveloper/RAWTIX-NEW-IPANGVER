@@ -136,8 +136,8 @@ function AdminShippingPage() {
       if (!rates || rates.length === 0) {
         setSimError("Tidak ada layanan kurir yang tersedia untuk rute ini.");
       }
-    } catch (e: any) {
-      setSimError(e.message || "Gagal menghitung tarif");
+    } catch (e: unknown) {
+      setSimError(e instanceof Error ? e.message : "Gagal menghitung tarif");
     } finally {
       setCalculating(false);
     }

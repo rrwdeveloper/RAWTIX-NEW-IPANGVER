@@ -41,6 +41,11 @@ export const Route = createFileRoute("/admin/")({
 });
 
 type PeriodFilter = "hari_ini" | "7_hari" | "bulan_ini" | "semua";
+type AdminDashboardStats = Awaited<ReturnType<typeof getAdminDashboardStats>>;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 function AdminDashboard() {
   const { token, role, isOwner, user } = useAdminAuth();
@@ -108,8 +113,8 @@ function AdminDashboard() {
         setShowAddUserModal(false);
       }, 1800);
     },
-    onError: (err: any) => {
-      setAddUserError(err.message || "Gagal menambahkan pengguna");
+    onError: (err: unknown) => {
+      setAddUserError(getErrorMessage(err, "Gagal menambahkan pengguna"));
     },
   });
 
@@ -142,8 +147,8 @@ function AdminDashboard() {
         setEditingUser(null);
       }, 1500);
     },
-    onError: (err: any) => {
-      setEditUserError(err.message || "Gagal memperbarui pengguna");
+    onError: (err: unknown) => {
+      setEditUserError(getErrorMessage(err, "Gagal memperbarui pengguna"));
     },
   });
 
@@ -163,8 +168,8 @@ function AdminDashboard() {
       queryClient.invalidateQueries({ queryKey: ["admin-user-logs"] });
       setUserToDelete(null);
     },
-    onError: (err: any) => {
-      alert("Gagal menghapus pengguna: " + err.message);
+    onError: (err: unknown) => {
+      alert("Gagal menghapus pengguna: " + getErrorMessage(err, "Terjadi kesalahan"));
     },
   });
 
@@ -291,7 +296,7 @@ function AdminDashboard() {
       successfulOrdersCount: baseFin.successfulOrdersCount,
       conversionRate: baseFin.conversionRate,
       chartSubtitle: "Semester II 2026 • Analisis Pertumbuhan Volume Penjualan",
-      monthlyTrend: baseFin.monthlyTrend.map((m: any) => ({
+      monthlyTrend: baseFin.monthlyTrend.map((m) => ({
         ...m,
         isPeak: m.month === "Okt",
       })),
@@ -967,7 +972,7 @@ function AdminDashboard() {
                 </div>
 
                 <div className="border border-[#292E36] rounded-xl divide-y divide-[#292E36]/80 overflow-hidden bg-[#0B0D10]/50">
-                  {stats.teamMembers.map((member: any) => {
+                  {stats.teamMembers.map((member) => {
                     const isCurrentUser = member.user_id === user?.id;
 
                     return (
@@ -1559,7 +1564,7 @@ function AdminDashboard() {
 // ─────────────────────────────────────────────────────────────────────────────
 // REUSABLE OPERATIONAL METRICS & ORDER LIST COMPONENT
 // ─────────────────────────────────────────────────────────────────────────────
-function OperationalSection({ stats }: { stats: any }) {
+function OperationalSection({ stats }: { stats: AdminDashboardStats }) {
   const metrics = [
     { label: "Total Pesanan Masuk", value: stats.totalOrders, icon: ShoppingCart },
     { label: "Menunggu Pembayaran", value: stats.pendingOrders, icon: Clock },
@@ -1609,7 +1614,7 @@ function OperationalSection({ stats }: { stats: any }) {
           {stats.recentOrders.length === 0 ? (
             <div className="p-8 text-xs text-[#9CA3AF] text-center">Belum ada pesanan aktif.</div>
           ) : (
-            stats.recentOrders.map((order: any) => (
+            stats.recentOrders.map((order) => (
               <Link
                 key={order.id}
                 to="/admin/orders/$id"

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowUpRight, Star, CheckCircle2, MessageCircle, ChevronRight, Sparkles, Scissors, ShieldCheck, HeartHandshake, Users } from "lucide-react";
 import { Header } from "@/components/layout/Header";
@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
 });
 
 function HomePage() {
-  const [quickViewProduct, setQuickViewProduct] = useState<any>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<ComponentProps<typeof QuickViewModal>["product"] | null>(null);
 
   // Fetch live homepage hero settings from site_settings (Owner customizable)
   const { data: heroSettings } = useQuery({

@@ -1,8 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { checkMidtransStatusDirect } from "./orders.functions";
+import {
+  checkDokuOrderStatus,
+  calculateDokuExpiry,
+  canAutomatedSyncTransition,
+  type OrderStatus,
+} from "./doku.functions";
 
 // ─── Authenticated Supabase client helper ───
 function cleanEnv(val?: string) {
@@ -61,17 +67,17 @@ async function assertOwner(token: string) {
 
 // ─── User Activity Logger (Audit Trail) ───
 export async function logUserAction(
-  client: any,
+  client: SupabaseClient<Database>,
   user: { id: string; email?: string | null },
   role: "owner" | "admin",
   action: string,
   entity: string,
-  descriptionOrDetails?: string | Record<string, any>,
-  details?: Record<string, any>
+  descriptionOrDetails?: string | Record<string, unknown>,
+  details?: Record<string, unknown>
 ) {
   try {
     let description: string | null = null;
-    let actualDetails: Record<string, any> = {};
+    let actualDetails: Record<string, unknown> = {};
 
     if (typeof descriptionOrDetails === "string") {
       description = descriptionOrDetails;
@@ -496,39 +502,89 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
     return { success: true };
   });
 
-const syncMidtransSchema = z.object({
+const syncPaymentSchema = z.object({
   token: z.string().min(1),
   orderId: z.string().uuid(),
 });
 
-export const syncMidtransOrderForAdmin = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => syncMidtransSchema.parse(input))
+export const syncPaymentStatusForAdmin = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => syncPaymentSchema.parse(input))
   .handler(async ({ data }) => {
-    const { client } = await assertAdmin(data.token);
+    const { client, user, role } = await assertAdmin(data.token);
 
     const { data: order, error: fetchErr } = await client
       .from("orders")
-      .select("id, order_number, status, total")
+      .select("id, order_number, status, total, payment_method, payment_reference, created_at")
       .eq("id", data.orderId)
       .single();
 
     if (fetchErr || !order) throw new Error("Pesanan tidak ditemukan");
 
-    const midtransResult = await checkMidtransStatusDirect(order.order_number);
-    let updated = false;
+    const currentStatus = order.status as OrderStatus;
+    const isDoku =
+      order.payment_method === "doku" ||
+      (order.payment_reference && order.payment_reference.includes("doku.com"));
 
-    if (midtransResult.effectiveStatus !== order.status && midtransResult.transactionStatus !== "not_selected" && midtransResult.transactionStatus !== "error") {
-      // Update order status in DB
+    let updated = false;
+    let targetStatus: OrderStatus = currentStatus;
+    const gateway = isDoku ? "doku" : "midtrans";
+    let statusLabel = "";
+    let paymentChannel = order.payment_method || (isDoku ? "doku" : "midtrans");
+    let rawResult: unknown = null;
+
+    if (isDoku) {
+      const dokuResult = await checkDokuOrderStatus(order.order_number);
+      const expiryInfo = calculateDokuExpiry(order.created_at, 60);
+      rawResult = dokuResult;
+      statusLabel = dokuResult.transactionStatus;
+
+      if (dokuResult.paymentType) {
+        paymentChannel = dokuResult.paymentType;
+      }
+
+      if (dokuResult.effectiveStatus === "paid") {
+        targetStatus = "paid";
+      } else if (dokuResult.effectiveStatus === "cancelled") {
+        targetStatus = "cancelled";
+      } else if (currentStatus === "pending" && expiryInfo.isExpired) {
+        // Expiry fallback: payment due date (60 min) has passed
+        targetStatus = "cancelled";
+        statusLabel = "EXPIRED";
+      } else {
+        targetStatus = currentStatus;
+      }
+    } else {
+      const midtransResult = await checkMidtransStatusDirect(order.order_number);
+      rawResult = midtransResult;
+      statusLabel = midtransResult.transactionStatus;
+
+      if (midtransResult.paymentType) {
+        paymentChannel = midtransResult.paymentType;
+      }
+
+      if (
+        midtransResult.effectiveStatus !== "pending" ||
+        (midtransResult.transactionStatus !== "not_selected" && midtransResult.transactionStatus !== "error")
+      ) {
+        targetStatus = midtransResult.effectiveStatus;
+      }
+    }
+
+    // Terminal state protection: prevent automated sync from downgrading paid/processing/shipped/delivered orders
+    const canTransition = canAutomatedSyncTransition(currentStatus, targetStatus);
+
+    if (targetStatus !== currentStatus && canTransition) {
       await client
         .from("orders")
         .update({
-          status: midtransResult.effectiveStatus,
-          payment_method: midtransResult.paymentType || "midtrans",
+          status: targetStatus,
+          payment_method: paymentChannel,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", data.orderId);
 
-      // Adjust stock if transitioning to paid
-      if (midtransResult.effectiveStatus === "paid" && order.status !== "paid") {
+      // Decrement stock if transitioning to paid
+      if (targetStatus === "paid" && currentStatus !== "paid") {
         const { data: orderItems } = await client
           .from("order_items")
           .select("variant_id, quantity")
@@ -554,19 +610,60 @@ export const syncMidtransOrderForAdmin = createServerFn({ method: "POST" })
         }
       }
 
+      // Restore stock if transitioning to cancelled from paid
+      if (targetStatus === "cancelled" && ["paid", "processing", "shipped"].includes(currentStatus)) {
+        const { data: orderItems } = await client
+          .from("order_items")
+          .select("variant_id, quantity")
+          .eq("order_id", data.orderId);
+
+        if (orderItems) {
+          for (const item of orderItems) {
+            if (!item.variant_id) continue;
+            const { data: variant } = await client
+              .from("product_variants")
+              .select("stock")
+              .eq("id", item.variant_id)
+              .single();
+
+            if (variant) {
+              await client
+                .from("product_variants")
+                .update({ stock: variant.stock + item.quantity })
+                .eq("id", item.variant_id);
+            }
+          }
+        }
+      }
+
+      await logUserAction(
+        client,
+        user,
+        role,
+        "SYNC_PAYMENT_STATUS",
+        `Pesanan #${order.order_number}`,
+        `Sinkronisasi status pembayaran via ${gateway.toUpperCase()} dari "${currentStatus}" menjadi "${targetStatus}".`,
+        { gateway, previous: currentStatus, new: targetStatus, gatewayStatus: statusLabel }
+      );
+
       updated = true;
     }
 
     return {
       orderNumber: order.order_number,
-      previousStatus: order.status,
-      currentStatus: midtransResult.effectiveStatus,
-      midtransStatus: midtransResult.transactionStatus,
-      paymentType: midtransResult.paymentType,
+      previousStatus: currentStatus,
+      currentStatus: updated ? targetStatus : currentStatus,
+      gateway,
+      gatewayStatus: statusLabel,
+      midtransStatus: statusLabel, // backward compatibility
+      paymentType: paymentChannel,
       updated,
-      details: midtransResult,
+      details: rawResult,
     };
   });
+
+// Backward-compatible alias
+export const syncMidtransOrderForAdmin = syncPaymentStatusForAdmin;
 
 // ─── Products ───
 export const getAdminProducts = createServerFn({ method: "POST" })
@@ -1276,7 +1373,7 @@ export const updateTeamUser = createServerFn({ method: "POST" })
     if (!serviceClient) throw new Error("Service role Supabase belum terkonfigurasi");
 
     // 1. Update Auth credentials (Email / Password) if provided
-    const authUpdates: Record<string, any> = {};
+    const authUpdates: Record<string, string | boolean> = {};
     if (data.newEmail) authUpdates.email = data.newEmail;
     if (data.newPassword) authUpdates.password = data.newPassword;
 
@@ -1386,13 +1483,13 @@ export const getSiteSettings = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    return setting?.value as Record<string, any> | null;
+    return setting?.value as Record<string, unknown> | null;
   });
 
 const updateSiteSettingsSchema = z.object({
   token: z.string().min(1),
   key: z.string().default("homepage_hero"),
-  value: z.record(z.any()),
+  value: z.record(z.unknown()),
 });
 
 export const updateSiteSettings = createServerFn({ method: "POST" })

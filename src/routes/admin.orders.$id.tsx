@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { getAdminOrderDetail, updateOrderStatus, syncMidtransOrderForAdmin } from "@/utils/admin.functions";
+import { getAdminOrderDetail, updateOrderStatus, syncPaymentStatusForAdmin } from "@/utils/admin.functions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -42,19 +42,20 @@ function AdminOrderDetailPage() {
   });
 
   const syncMutation = useMutation({
-    mutationFn: () => syncMidtransOrderForAdmin({ data: { token: token!, orderId: id } }),
+    mutationFn: () => syncPaymentStatusForAdmin({ data: { token: token!, orderId: id } }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["admin-order", id] });
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
       queryClient.invalidateQueries({ queryKey: ["admin-dashboard"] });
+      const gw = (res.gateway || "Gateway").toUpperCase();
       if (res.updated) {
-        toast.success(`Status berhasil disinkronkan ke "${res.currentStatus}" (Midtrans: ${res.midtransStatus})`);
+        toast.success(`Status berhasil disinkronkan ke "${res.currentStatus}" (${gw}: ${res.gatewayStatus})`);
       } else {
-        toast.info(`Status Midtrans saat ini: ${res.midtransStatus} (Order: ${res.currentStatus})`);
+        toast.info(`Status ${gw} saat ini: ${res.gatewayStatus} (Order: ${res.currentStatus})`);
       }
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "Gagal sinkron status Midtrans";
+      const msg = err instanceof Error ? err.message : "Gagal sinkron status pembayaran";
       toast.error(msg);
     },
   });
@@ -118,14 +119,16 @@ function AdminOrderDetailPage() {
           </div>
         ))}
 
-        {/* Tombol Sinkronisasi Midtrans */}
+        {/* Tombol Sinkronisasi Pembayaran */}
         <button
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
           className="px-3 py-1.5 text-[10px] tracking-wider uppercase border border-border bg-card hover:border-foreground text-foreground flex items-center gap-1.5 transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`w-3 h-3 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-          {syncMutation.isPending ? "Memeriksa Midtrans..." : "Sinkronkan Status Midtrans"}
+          {syncMutation.isPending
+            ? `Memeriksa ${order.payment_method === "doku" ? "DOKU" : "Gateway"}...`
+            : `Sinkronkan Status ${order.payment_method === "doku" ? "DOKU" : "Pembayaran"}`}
         </button>
       </div>
 

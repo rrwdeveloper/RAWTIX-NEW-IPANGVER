@@ -2,7 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { createDokuCheckoutPayment } from "./doku.functions";
+import {
+  createDokuCheckoutPayment,
+  checkDokuOrderStatus,
+  calculateDokuExpiry,
+  canAutomatedSyncTransition,
+  type OrderStatus,
+} from "./doku.functions";
 
 function getAnonClient() {
   const url = process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
@@ -427,14 +433,105 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
           .eq("order_number", data.orderNumber)
           .maybeSingle();
 
-        // --- DOKU: payment_reference is the DOKU Checkout URL ---
-        if (dbOrder?.payment_method === "doku") {
-          const dokuPaymentUrl = dbOrder.payment_reference && dbOrder.payment_reference.startsWith("http")
-            ? dbOrder.payment_reference
-            : null;
+        // --- DOKU: payment_reference is the DOKU Checkout URL or payment_method is doku ---
+        const isDokuPayment =
+          dbOrder?.payment_method === "doku" ||
+          (dbOrder?.payment_reference && dbOrder.payment_reference.includes("doku.com"));
 
-          // Map DB status to our standard statuses
-          const dbStatus = (dbOrder?.status || "pending") as "pending" | "paid" | "cancelled";
+        if (isDokuPayment) {
+          const dokuPaymentUrl =
+            dbOrder?.payment_reference && dbOrder.payment_reference.startsWith("http")
+              ? dbOrder.payment_reference
+              : null;
+
+          let dbStatus = (dbOrder?.status || orderData.status || "pending") as "pending" | "paid" | "cancelled";
+          const createdAt = orderData.created_at || new Date().toISOString();
+          const expiryInfo = calculateDokuExpiry(createdAt, 60);
+
+          let dokuTxStatus = dbStatus === "paid" ? "SUCCESS" : dbStatus === "cancelled" ? "EXPIRED" : "PENDING";
+          let dokuChannel = "doku";
+
+          // If pending, perform real-time verification and check expiry
+          if (dbStatus === "pending") {
+            const dokuResult = await checkDokuOrderStatus(data.orderNumber);
+
+            if (dokuResult.transactionStatus !== "UNKNOWN") {
+              dokuTxStatus = dokuResult.transactionStatus;
+              if (dokuResult.paymentType) dokuChannel = dokuResult.paymentType;
+            }
+
+            if (dokuResult.effectiveStatus === "paid") {
+              dbStatus = "paid";
+            } else if (dokuResult.effectiveStatus === "cancelled") {
+              dbStatus = "cancelled";
+            } else if (expiryInfo.isExpired) {
+              // Expiry fallback: payment due date (60 mins) has elapsed without confirmation
+              dbStatus = "cancelled";
+              dokuTxStatus = "EXPIRED";
+            }
+
+            // Sync with Supabase if status changed
+            if (dbStatus !== dbOrder?.status) {
+              let rpcSynced = false;
+              try {
+                const { error: rpcErr } = await client.rpc("sync_order_payment_status" as never, {
+                  p_order_number: data.orderNumber,
+                  p_status: dbStatus,
+                  p_payment_method: dokuChannel,
+                  p_snap_token: null,
+                } as never);
+                if (!rpcErr) rpcSynced = true;
+              } catch {
+                rpcSynced = false;
+              }
+
+              if (!rpcSynced && service) {
+                await service
+                  .from("orders")
+                  .update({
+                    status: dbStatus,
+                    payment_method: dokuChannel,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("order_number", data.orderNumber);
+
+                // Stock management on fallback
+                if (dbStatus === "paid") {
+                  const { data: orderItems } = await service
+                    .from("order_items")
+                    .select("variant_id, quantity")
+                    .eq("order_id", orderData.id);
+
+                  if (orderItems) {
+                    for (const item of orderItems) {
+                      if (!item.variant_id) continue;
+                      const { data: variant } = await service
+                        .from("product_variants")
+                        .select("stock")
+                        .eq("id", item.variant_id)
+                        .single();
+
+                      if (variant) {
+                        await service
+                          .from("product_variants")
+                          .update({ stock: Math.max(0, variant.stock - item.quantity) })
+                          .eq("id", item.variant_id);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+
+          const midtransEquivalentStatus =
+            dbStatus === "paid"
+              ? "settlement"
+              : dbStatus === "cancelled"
+              ? dokuTxStatus === "EXPIRED" || expiryInfo.isExpired
+                ? "expire"
+                : "cancel"
+              : "pending";
 
           return {
             id: orderData.id,
@@ -446,14 +543,14 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
             shipping_cost: orderData.shipping_cost,
             shipping_method_name: orderData.shipping_method_name,
             status: dbStatus,
-            midtrans_status: dbStatus === "paid" ? "settlement" : dbStatus === "cancelled" ? "cancel" : "pending",
-            payment_type: "doku",
+            midtrans_status: midtransEquivalentStatus,
+            payment_type: dokuChannel,
             va_numbers: null,
             bill_key: null,
             biller_code: null,
             permata_va_number: null,
             qr_string: null,
-            expiry_time: null,
+            expiry_time: expiryInfo.expiryIso,
             snap_token: null,
             payment_proof_url: dokuPaymentUrl,
             payment_proof_submitted_at: orderData.payment_proof_submitted_at,
@@ -473,9 +570,16 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
 
     // Cek status real-time langsung ke Midtrans Sandbox API
     const midtransResult = await checkMidtransStatusDirect(data.orderNumber);
+    const currentDbStatus = (orderData.status || "pending") as OrderStatus;
 
-    // Jika Midtrans mengembalikan status konfirmasi (paid atau cancelled), coba sinkronkan ke DB jika RPC tersedia
-    if (midtransResult.effectiveStatus !== "pending" || midtransResult.transactionStatus !== "not_selected") {
+    // Terminal state protection: only update if allowed by transition rules
+    const shouldUpdateDb =
+      midtransResult.effectiveStatus !== currentDbStatus &&
+      midtransResult.transactionStatus !== "not_selected" &&
+      midtransResult.transactionStatus !== "error" &&
+      canAutomatedSyncTransition(currentDbStatus, midtransResult.effectiveStatus);
+
+    if (shouldUpdateDb) {
       try {
         const { error } = await client.rpc("sync_order_payment_status" as never, {
           p_order_number: data.orderNumber,
@@ -496,9 +600,45 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
               updated_at: new Date().toISOString(),
             })
             .eq("order_number", data.orderNumber);
+
+          if (midtransResult.effectiveStatus === "paid" && currentDbStatus !== "paid") {
+            const { data: orderItems } = await service
+              .from("order_items")
+              .select("variant_id, quantity")
+              .eq("order_id", orderData.id);
+
+            if (orderItems) {
+              for (const item of orderItems) {
+                if (!item.variant_id) continue;
+                const { data: variant } = await service
+                  .from("product_variants")
+                  .select("stock")
+                  .eq("id", item.variant_id)
+                  .single();
+
+                if (variant) {
+                  await service
+                    .from("product_variants")
+                    .update({ stock: Math.max(0, variant.stock - item.quantity) })
+                    .eq("id", item.variant_id);
+                }
+              }
+            }
+          }
         }
       }
     }
+
+    const effectiveStatus: "pending" | "paid" | "cancelled" = shouldUpdateDb
+      ? midtransResult.effectiveStatus
+      : (["pending", "paid", "cancelled"].includes(currentDbStatus)
+          ? (currentDbStatus as "pending" | "paid" | "cancelled")
+          : "paid");
+
+    const effectiveMidtransStatus =
+      midtransResult.transactionStatus !== "not_selected" && midtransResult.transactionStatus !== "error"
+        ? midtransResult.transactionStatus
+        : orderData.midtrans_status || (effectiveStatus === "cancelled" ? "cancel" : effectiveStatus === "paid" ? "settlement" : "pending");
 
     return {
       id: orderData.id,
@@ -509,8 +649,8 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
       subtotal: orderData.subtotal,
       shipping_cost: orderData.shipping_cost,
       shipping_method_name: orderData.shipping_method_name,
-      status: midtransResult.effectiveStatus,
-      midtrans_status: midtransResult.transactionStatus,
+      status: effectiveStatus,
+      midtrans_status: effectiveMidtransStatus,
       payment_type: midtransResult.paymentType || orderData.payment_method || null,
       va_numbers: midtransResult.vaNumbers || null,
       bill_key: midtransResult.billKey || null,
