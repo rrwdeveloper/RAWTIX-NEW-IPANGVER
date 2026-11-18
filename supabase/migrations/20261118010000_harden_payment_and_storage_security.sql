@@ -145,6 +145,7 @@ WHERE id = 'payment-proofs';
 
 DROP POLICY IF EXISTS "Payment proofs are publicly readable" ON storage.objects;
 DROP POLICY IF EXISTS "Anyone can upload payment proofs" ON storage.objects;
+DROP POLICY IF EXISTS "Staff can view payment proofs" ON storage.objects;
 
 -- Allow authenticated staff (admin & owner) to view payment proofs
 CREATE POLICY "Staff can view payment proofs"
