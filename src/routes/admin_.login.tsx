@@ -42,9 +42,16 @@ function AdminLoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
-        <h1 className="font-heading text-2xl font-bold tracking-[0.15em] uppercase text-center text-foreground mb-8">
-          RAWTIX ADMIN
-        </h1>
+        <div className="flex flex-col items-center mb-6">
+          <img
+            src="/rawtix-logo.png"
+            alt="RAWTIX"
+            className="w-16 h-16 rounded-xl object-cover mb-4 border border-border shadow-md"
+          />
+          <h1 className="font-heading text-2xl font-bold tracking-[0.15em] uppercase text-center text-foreground">
+            RAWTIX ADMIN
+          </h1>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (

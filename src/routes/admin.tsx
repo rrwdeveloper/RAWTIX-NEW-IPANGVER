@@ -76,8 +76,8 @@ function AdminLayoutGuard() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0B0D10]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#F5B800] to-yellow-600 flex items-center justify-center shadow-[0_0_12px_rgba(245,184,0,0.25)] animate-pulse">
-            <span className="text-[#0B0D10] font-black text-xs">RX</span>
+          <div className="w-9 h-9 rounded-lg overflow-hidden border border-[#292E36] shadow-sm animate-pulse">
+            <img src="/rawtix-logo.png" alt="RAWTIX" className="w-full h-full object-cover" />
           </div>
           <div className="text-[#9CA3AF] text-xs tracking-widest uppercase animate-pulse">
             Memuat Executive Portal...
@@ -102,8 +102,8 @@ function AdminLayoutGuard() {
           {/* Brand Logo Header */}
           <div className="h-20 px-6 flex items-center justify-between border-b border-[#292E36]/60">
             <Link to="/admin" className="flex items-center space-x-3 group">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#F5B800] to-yellow-600 flex items-center justify-center shadow-[0_0_12px_rgba(245,184,0,0.18)] group-hover:scale-105 transition-transform">
-                <span className="text-[#0B0D10] font-black tracking-tighter text-sm">RX</span>
+              <div className="w-8 h-8 rounded-lg overflow-hidden border border-[#292E36] shadow-[0_0_12px_rgba(245,184,0,0.18)] group-hover:scale-105 transition-transform flex-shrink-0">
+                <img src="/rawtix-logo.png" alt="RAWTIX" className="w-full h-full object-cover" />
               </div>
               <div>
                 <h1 className="text-base font-bold tracking-wider text-[#F3F4F6] group-hover:text-[#F5B800] transition-colors">
@@ -206,8 +206,8 @@ function AdminLayoutGuard() {
         {/* Mobile Header */}
         <header className="md:hidden flex items-center justify-between p-4 border-b border-[#292E36] bg-[#0B0D10]/95 sticky top-0 z-20 backdrop-blur">
           <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#F5B800] to-yellow-600 flex items-center justify-center shadow-sm">
-              <span className="text-[#0B0D10] font-black text-xs">RX</span>
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#292E36] shadow-xs flex-shrink-0">
+              <img src="/rawtix-logo.png" alt="RAWTIX" className="w-full h-full object-cover" />
             </div>
             <span className="font-bold text-sm tracking-wider text-white">RAWTIX</span>
             {role === "owner" ? (

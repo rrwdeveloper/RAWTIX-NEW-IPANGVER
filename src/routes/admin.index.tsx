@@ -177,8 +177,8 @@ function AdminDashboard() {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#F5B800]/10 border border-[#F5B800]/30 flex items-center justify-center animate-pulse">
-            <span className="text-[#F5B800] font-black text-xs">RX</span>
+          <div className="w-10 h-10 rounded-xl overflow-hidden border border-[#F5B800]/30 shadow-xs animate-pulse">
+            <img src="/rawtix-logo.png" alt="RAWTIX" className="w-full h-full object-cover" />
           </div>
           <div className="text-xs tracking-widest uppercase text-[#9CA3AF] animate-pulse">
             Memuat Rekap Eksekutif...

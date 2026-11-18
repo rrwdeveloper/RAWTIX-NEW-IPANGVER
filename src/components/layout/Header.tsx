@@ -55,6 +55,11 @@ export function Header() {
 
             {/* Script Logo like Saint P */}
             <Link to="/" className="flex items-center gap-2 group">
+              <img
+                src="/rawtix-logo.png"
+                alt="RAWTIX"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded object-cover shadow-xs border border-white/10"
+              />
               <span className="font-script text-2xl sm:text-3xl text-foreground font-normal tracking-wide group-hover:opacity-80 transition-opacity">
                 Rawtix
               </span>
@@ -149,7 +154,14 @@ export function Header() {
           <aside className="relative z-50 w-full max-w-sm bg-card border-r border-border h-full flex flex-col justify-between p-6 sm:p-8 animate-in slide-in-from-left duration-300">
             <div>
               <div className="flex items-center justify-between pb-6 border-b border-border">
-                <span className="font-script text-3xl text-foreground">Rawtix</span>
+                <div className="flex items-center gap-2.5">
+                  <img
+                    src="/rawtix-logo.png"
+                    alt="RAWTIX"
+                    className="w-8 h-8 rounded object-cover shadow-xs border border-border"
+                  />
+                  <span className="font-script text-3xl text-foreground">Rawtix</span>
+                </div>
                 <button
                   onClick={() => setMenuOpen(false)}
                   className="p-1 text-foreground hover:text-muted-foreground transition-colors"

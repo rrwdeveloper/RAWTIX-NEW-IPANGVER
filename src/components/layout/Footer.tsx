@@ -41,9 +41,16 @@ export function Footer() {
           
           {/* Brand Essence — Left */}
           <div className="md:col-span-5 space-y-4">
-            <span className="font-script text-3xl sm:text-4xl text-foreground font-normal">
-              Rawtix
-            </span>
+            <div className="flex items-center gap-3">
+              <img
+                src="/rawtix-logo.png"
+                alt="RAWTIX"
+                className="w-9 h-9 rounded object-cover shadow-xs border border-border"
+              />
+              <span className="font-script text-3xl sm:text-4xl text-foreground font-normal">
+                Rawtix
+              </span>
+            </div>
             <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground font-medium">
               Modern Heritage &amp; Fine Bespoke Batik
             </p>
