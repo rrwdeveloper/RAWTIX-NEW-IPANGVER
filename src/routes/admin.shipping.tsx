@@ -33,6 +33,7 @@ export const Route = createFileRoute("/admin/shipping")({
 interface DestinationItem {
   id: number;
   label: string;
+  district_name?: string;
   subdistrict_name?: string;
   city_name?: string;
   province_name?: string;

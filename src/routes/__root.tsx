@@ -10,7 +10,6 @@ import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import { CartProvider } from "@/hooks/useCart";
 import { ThemeProvider } from "@/hooks/useTheme";
-import { CantingCursor } from "@/components/ui/CantingCursor";
 
 function NotFoundComponent() {
   return (

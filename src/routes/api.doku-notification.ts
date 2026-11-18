@@ -9,12 +9,19 @@ export const Route = createFileRoute("/api/doku-notification" as never)({
       createHandlers({
         POST: async ({ request }: { request: Request }) => {
           try {
-            const rawBody = await request.text();
-            const body = JSON.parse(rawBody || "{}") as {
+            let rawBody = "";
+            let body: {
               order?: { invoice_number?: string; status?: string };
               transaction?: { original_request_id?: string; status?: string };
               channel?: { id?: string };
-            };
+            } = {};
+
+            try {
+              rawBody = await request.text();
+              body = JSON.parse(rawBody || "{}");
+            } catch {
+              return Response.json({ message: "Malformed JSON payload" }, { status: 400 });
+            }
 
             const clientId = request.headers.get("Client-Id") || "";
             const requestId = request.headers.get("Request-Id") || "";
@@ -22,25 +29,32 @@ export const Route = createFileRoute("/api/doku-notification" as never)({
             const signature = request.headers.get("Signature") || "";
 
             const secretKey = process.env.DOKU_SECRET_KEY || "";
+            if (!secretKey) {
+              console.error("[DOKU Webhook] DOKU_SECRET_KEY is not configured");
+              return Response.json({ message: "Webhook secret key is not configured" }, { status: 503 });
+            }
 
-            // 1. Strict signature verification if secret key is configured
-            if (secretKey) {
-              if (!signature) {
-                console.warn("[DOKU Webhook] Missing Signature header");
-                return Response.json({ message: "Missing signature header" }, { status: 401 });
-              }
+            if (!signature) {
+              console.warn("[DOKU Webhook] Missing Signature header");
+              return Response.json({ message: "Missing signature header" }, { status: 401 });
+            }
 
-              const bodyDigest = crypto.createHash("sha256").update(rawBody).digest("base64");
-              const targetPath = "/api/doku-notification";
-              const component = `Client-Id:${clientId}\nRequest-Id:${requestId}\nRequest-Timestamp:${requestTimestamp}\nRequest-Target:${targetPath}\nDigest:${bodyDigest}`;
-              const hmac = crypto.createHmac("sha256", secretKey);
-              hmac.update(component);
-              const expectedSignature = `HMACSHA256=${hmac.digest("base64")}`;
+            if (!requestId) {
+              return Response.json({ message: "Missing Request-Id header" }, { status: 400 });
+            }
 
-              if (signature !== expectedSignature) {
-                console.warn(`[DOKU Webhook] Signature mismatch for order ${body?.order?.invoice_number || ""}`);
-                return Response.json({ message: "Invalid signature" }, { status: 401 });
-              }
+            const bodyDigest = crypto.createHash("sha256").update(rawBody).digest("base64");
+            const targetPath = "/api/doku-notification";
+            const component = `Client-Id:${clientId}\nRequest-Id:${requestId}\nRequest-Timestamp:${requestTimestamp}\nRequest-Target:${targetPath}\nDigest:${bodyDigest}`;
+            const hmac = crypto.createHmac("sha256", secretKey);
+            hmac.update(component);
+            const expectedSignature = `HMACSHA256=${hmac.digest("base64")}`;
+
+            const sigBuf = Buffer.from(signature);
+            const expBuf = Buffer.from(expectedSignature);
+            if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+              console.warn(`[DOKU Webhook] Signature mismatch for order ${body?.order?.invoice_number || ""}`);
+              return Response.json({ message: "Invalid signature" }, { status: 401 });
             }
 
             const invoiceNumber = body?.order?.invoice_number || body?.transaction?.original_request_id;
@@ -62,11 +76,11 @@ export const Route = createFileRoute("/api/doku-notification" as never)({
 
             // 3. Connect to Supabase
             const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
             if (!supabaseUrl || !supabaseKey) {
-              console.error("[DOKU Webhook] Supabase credentials not found in environment");
-              return Response.json({ message: "Server configuration error" }, { status: 500 });
+              console.error("[DOKU Webhook] Supabase service role credentials not configured");
+              return Response.json({ message: "Server configuration error" }, { status: 503 });
             }
 
             const client = createClient(supabaseUrl, supabaseKey, {
@@ -80,7 +94,12 @@ export const Route = createFileRoute("/api/doku-notification" as never)({
               .eq("order_number", invoiceNumber)
               .maybeSingle();
 
-            if (fetchErr || !order) {
+            if (fetchErr) {
+              console.error("[DOKU Webhook] Database query error:", fetchErr);
+              return Response.json({ message: "Database query error" }, { status: 502 });
+            }
+
+            if (!order) {
               console.warn(`[DOKU Webhook] Order ${invoiceNumber} not found in database`);
               return Response.json({ message: "Order not found" }, { status: 404 });
             }
@@ -139,8 +158,8 @@ export const Route = createFileRoute("/api/doku-notification" as never)({
                 })
                 .eq("id", order.id);
 
-              // Stock auto-decrement when moving to paid
-              if (effectiveStatus === "paid" && currentStatus !== "paid") {
+              // Stock auto-decrement when moving to paid from pending
+              if (effectiveStatus === "paid" && currentStatus === "pending") {
                 const { data: orderItems } = await client
                   .from("order_items")
                   .select("variant_id, quantity")

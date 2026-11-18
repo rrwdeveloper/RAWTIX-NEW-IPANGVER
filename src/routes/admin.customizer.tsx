@@ -19,6 +19,15 @@ const DEFAULT_HERO = {
   overlay_opacity: 60,
 };
 
+interface HeroSettings {
+  headline?: string;
+  subheadline?: string;
+  cta_text?: string;
+  cta_link?: string;
+  background_image?: string;
+  overlay_opacity?: number;
+}
+
 function AdminCustomizerPage() {
   const { token, isOwner, role } = useAdminAuth();
   const queryClient = useQueryClient();
@@ -36,13 +45,14 @@ function AdminCustomizerPage() {
 
   useEffect(() => {
     if (initialSettings) {
+      const s = initialSettings as unknown as HeroSettings;
       setForm({
-        headline: initialSettings.headline || DEFAULT_HERO.headline,
-        subheadline: initialSettings.subheadline || DEFAULT_HERO.subheadline,
-        cta_text: initialSettings.cta_text || DEFAULT_HERO.cta_text,
-        cta_link: initialSettings.cta_link || DEFAULT_HERO.cta_link,
-        background_image: initialSettings.background_image || "",
-        overlay_opacity: initialSettings.overlay_opacity ?? DEFAULT_HERO.overlay_opacity,
+        headline: s.headline || DEFAULT_HERO.headline,
+        subheadline: s.subheadline || DEFAULT_HERO.subheadline,
+        cta_text: s.cta_text || DEFAULT_HERO.cta_text,
+        cta_link: s.cta_link || DEFAULT_HERO.cta_link,
+        background_image: s.background_image || "",
+        overlay_opacity: s.overlay_opacity ?? DEFAULT_HERO.overlay_opacity,
       });
     }
   }, [initialSettings]);

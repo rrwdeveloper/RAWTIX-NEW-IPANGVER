@@ -89,6 +89,11 @@ function HomePage() {
       status: "active",
       description: item.description,
       preorder_estimated_date: null,
+      category_id: null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      featured: false,
+      sort_order: 1,
       product_images: [
         {
           id: `img-${item.slug}`,
@@ -96,14 +101,15 @@ function HomePage() {
           is_primary: true,
           alt_text: item.name,
           product_id: item.productId,
+          sort_order: 0,
         },
       ],
       product_variants: [
-        { id: `${item.slug}-s`, size: "S", stock: 8, product_id: item.productId },
-        { id: `${item.slug}-m`, size: "M", stock: 8, product_id: item.productId },
-        { id: `${item.slug}-l`, size: "L", stock: 6, product_id: item.productId },
-        { id: `${item.slug}-xl`, size: "XL", stock: 5, product_id: item.productId },
-        { id: `${item.slug}-xxl`, size: "XXL", stock: 3, product_id: item.productId },
+        { id: `${item.slug}-s`, size: "S", stock: 8, product_id: item.productId, sku: null },
+        { id: `${item.slug}-m`, size: "M", stock: 8, product_id: item.productId, sku: null },
+        { id: `${item.slug}-l`, size: "L", stock: 6, product_id: item.productId, sku: null },
+        { id: `${item.slug}-xl`, size: "XL", stock: 5, product_id: item.productId, sku: null },
+        { id: `${item.slug}-xxl`, size: "XXL", stock: 3, product_id: item.productId, sku: null },
       ],
     });
   };

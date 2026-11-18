@@ -33,18 +33,26 @@ function AdminLayoutGuard() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  const baseNavItems = [
-    { to: "/admin" as const, label: "Dashboard", icon: LayoutDashboard, exact: true },
-    { to: "/admin/orders" as const, label: "Pesanan", icon: ShoppingCart },
-    { to: "/admin/products" as const, label: "Katalog Produk", icon: Package },
-    { to: "/admin/categories" as const, label: "Kategori", icon: FolderOpen },
-    { to: "/admin/shipping" as const, label: "Tarif Pengiriman", icon: Truck },
+  interface AdminNavItem {
+    to: "/admin" | "/admin/orders" | "/admin/products" | "/admin/categories" | "/admin/shipping" | "/admin/customizer" | "/admin/logs";
+    label: string;
+    icon: typeof LayoutDashboard;
+    exact?: boolean;
+    isOwnerOnly?: boolean;
+  }
+
+  const baseNavItems: AdminNavItem[] = [
+    { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { to: "/admin/orders", label: "Pesanan", icon: ShoppingCart },
+    { to: "/admin/products", label: "Katalog Produk", icon: Package },
+    { to: "/admin/categories", label: "Kategori", icon: FolderOpen },
+    { to: "/admin/shipping", label: "Tarif Pengiriman", icon: Truck },
   ];
 
-  const ownerExclusiveItems = isOwner
+  const ownerExclusiveItems: AdminNavItem[] = isOwner
     ? [
         {
-          to: "/admin/customizer" as const,
+          to: "/admin/customizer",
           label: "Layout & Tampilan",
           icon: Palette,
           isOwnerOnly: true,
@@ -52,10 +60,10 @@ function AdminLayoutGuard() {
       ]
     : [];
 
-  const navItems = [
+  const navItems: AdminNavItem[] = [
     ...baseNavItems,
     ...ownerExclusiveItems,
-    { to: "/admin/logs" as const, label: "User Log", icon: ClipboardList },
+    { to: "/admin/logs", label: "User Log", icon: ClipboardList },
   ];
 
   useEffect(() => {

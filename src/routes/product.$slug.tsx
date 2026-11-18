@@ -58,6 +58,7 @@ function ProductDetailPage() {
     description: catalogueItem.description,
     status: "active",
     sort_order: 1,
+    featured: false,
     category_id: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
@@ -70,15 +71,14 @@ function ProductDetailPage() {
         alt_text: catalogueItem.name,
         is_primary: true,
         sort_order: 0,
-        created_at: new Date().toISOString(),
       },
     ],
     product_variants: [
-      { id: `${catalogueItem.slug}-s`, product_id: catalogueItem.productId, size: "S", stock: 8, created_at: new Date().toISOString() },
-      { id: `${catalogueItem.slug}-m`, product_id: catalogueItem.productId, size: "M", stock: 8, created_at: new Date().toISOString() },
-      { id: `${catalogueItem.slug}-l`, product_id: catalogueItem.productId, size: "L", stock: 6, created_at: new Date().toISOString() },
-      { id: `${catalogueItem.slug}-xl`, product_id: catalogueItem.productId, size: "XL", stock: 5, created_at: new Date().toISOString() },
-      { id: `${catalogueItem.slug}-xxl`, product_id: catalogueItem.productId, size: "XXL", stock: 3, created_at: new Date().toISOString() },
+      { id: `${catalogueItem.slug}-s`, product_id: catalogueItem.productId, size: "S", stock: 8, sku: null },
+      { id: `${catalogueItem.slug}-m`, product_id: catalogueItem.productId, size: "M", stock: 8, sku: null },
+      { id: `${catalogueItem.slug}-l`, product_id: catalogueItem.productId, size: "L", stock: 6, sku: null },
+      { id: `${catalogueItem.slug}-xl`, product_id: catalogueItem.productId, size: "XL", stock: 5, sku: null },
+      { id: `${catalogueItem.slug}-xxl`, product_id: catalogueItem.productId, size: "XXL", stock: 3, sku: null },
     ],
   } : null);
 

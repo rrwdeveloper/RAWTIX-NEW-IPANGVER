@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { checkMidtransStatusDirect } from "./orders.functions";
 import {
   checkDokuOrderStatus,
@@ -93,7 +93,7 @@ export async function logUserAction(
       action,
       entity,
       description,
-      details: actualDetails,
+      details: actualDetails as unknown as Json,
     });
   } catch (e) {
     console.error("Failed to record user log:", e);
@@ -386,6 +386,42 @@ export const getAdminOrderDetail = createServerFn({ method: "POST" })
     return { order, items: items ?? [] };
   });
 
+export function canAdminOrderTransition(
+  prevStatus: OrderStatus,
+  newStatus: OrderStatus
+): { allowed: boolean; reason?: string } {
+  if (prevStatus === newStatus) return { allowed: true };
+
+  // Cannot transition out of delivered (delivered is terminal)
+  if (prevStatus === "delivered") {
+    return {
+      allowed: false,
+      reason: "Pesanan dengan status 'delivered' (selesai) tidak dapat diubah kembali ke status lain.",
+    };
+  }
+
+  // Cannot transition cancelled orders back to pending
+  if (prevStatus === "cancelled" && newStatus === "pending") {
+    return {
+      allowed: false,
+      reason: "Pesanan yang telah dibatalkan tidak dapat diaktifkan kembali menjadi 'pending'.",
+    };
+  }
+
+  // Once paid/processing/shipped/delivered, cannot downgrade to pending
+  if (
+    ["paid", "processing", "shipped", "delivered"].includes(prevStatus) &&
+    newStatus === "pending"
+  ) {
+    return {
+      allowed: false,
+      reason: "Pesanan yang sudah lunas/diproses tidak dapat diturunkan kembali ke status 'pending'.",
+    };
+  }
+
+  return { allowed: true };
+}
+
 const updateStatusSchema = z.object({
   token: z.string().min(1),
   orderId: z.string().uuid(),
@@ -406,16 +442,27 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
 
     if (fetchErr || !currentOrder) throw new Error("Pesanan tidak ditemukan");
 
-    const prevStatus = currentOrder.status;
-    const newStatus = data.status;
+    const prevStatus = currentOrder.status as OrderStatus;
+    const newStatus = data.status as OrderStatus;
+
+    // Idempotent early return if status is identical
+    if (prevStatus === newStatus) {
+      return { success: true, message: "Status pesanan tidak berubah" };
+    }
+
+    // Validate state machine transition
+    const transitionCheck = canAdminOrderTransition(prevStatus, newStatus);
+    if (!transitionCheck.allowed) {
+      throw new Error(transitionCheck.reason || "Transisi status tidak diizinkan");
+    }
 
     // Update status
     const { error } = await client
       .from("orders")
-      .update({ status: newStatus })
+      .update({ status: newStatus, updated_at: new Date().toISOString() })
       .eq("id", data.orderId);
 
-    if (error) throw new Error("Gagal mengupdate status");
+    if (error) throw new Error("Gagal mengupdate status: " + error.message);
 
     const statusLabels: Record<string, string> = {
       pending: "Menunggu Pembayaran",
@@ -438,8 +485,8 @@ export const updateOrderStatus = createServerFn({ method: "POST" })
       { previous: prevStatus, new: newStatus, previous_label: prevText, new_label: newText }
     );
 
-    // Stock auto-decrement: when status changes TO paid
-    if (newStatus === "paid" && prevStatus !== "paid") {
+    // Stock auto-decrement: ONLY when transitioning FROM pending TO paid
+    if (newStatus === "paid" && prevStatus === "pending") {
       const { data: orderItems } = await client
         .from("order_items")
         .select("variant_id, quantity")
@@ -507,9 +554,21 @@ const syncPaymentSchema = z.object({
   orderId: z.string().uuid(),
 });
 
+export interface AdminSyncPaymentResult {
+  orderNumber: string;
+  previousStatus: OrderStatus;
+  currentStatus: OrderStatus;
+  gateway: "doku" | "midtrans";
+  gatewayStatus: string;
+  midtransStatus: string;
+  paymentType: string;
+  updated: boolean;
+  details: Record<string, string | number | boolean>;
+}
+
 export const syncPaymentStatusForAdmin = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => syncPaymentSchema.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<AdminSyncPaymentResult> => {
     const { client, user, role } = await assertAdmin(data.token);
 
     const { data: order, error: fetchErr } = await client
@@ -658,7 +717,7 @@ export const syncPaymentStatusForAdmin = createServerFn({ method: "POST" })
       midtransStatus: statusLabel, // backward compatibility
       paymentType: paymentChannel,
       updated,
-      details: rawResult,
+      details: {} as Record<string, string | number | boolean>,
     };
   });
 
@@ -1388,6 +1447,27 @@ export const updateTeamUser = createServerFn({ method: "POST" })
 
     // 2. Update Role if provided
     if (data.newRole) {
+      if (data.newRole === "admin") {
+        const { data: currentRoleData } = await serviceClient
+          .from("user_roles")
+          .select("role")
+          .eq("id", data.roleId)
+          .maybeSingle();
+
+        if (currentRoleData?.role === "owner") {
+          const { count } = await serviceClient
+            .from("user_roles")
+            .select("id", { count: "exact", head: true })
+            .eq("role", "owner");
+
+          if ((count ?? 0) <= 1) {
+            throw new Error(
+              "Sistem harus memiliki minimal satu Owner yang aktif. Tidak dapat mendemosikan satu-satunya Owner."
+            );
+          }
+        }
+      }
+
       const { error: roleErr } = await serviceClient
         .from("user_roles")
         .update({ role: data.newRole })
@@ -1432,6 +1512,26 @@ export const deleteTeamUser = createServerFn({ method: "POST" })
       throw new Error("Tidak dapat menghapus akun Anda sendiri saat ini sedang aktif digunakan");
     }
 
+    // Check if target user has owner role and ensure at least one owner remains
+    const { data: targetRoleData } = await client
+      .from("user_roles")
+      .select("role")
+      .eq("id", data.roleId)
+      .maybeSingle();
+
+    if (targetRoleData?.role === "owner") {
+      const { count } = await client
+        .from("user_roles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "owner");
+
+      if ((count ?? 0) <= 1) {
+        throw new Error(
+          "Sistem harus memiliki minimal satu Owner yang aktif. Tidak dapat menghapus satu-satunya Owner."
+        );
+      }
+    }
+
     // Delete role from user_roles
     const { error: delErr } = await client
       .from("user_roles")
@@ -1470,9 +1570,18 @@ const getSiteSettingsSchema = z.object({
   key: z.string().default("homepage_hero"),
 });
 
+export interface SiteHeroSettings {
+  headline?: string;
+  subheadline?: string;
+  cta_text?: string;
+  cta_link?: string;
+  background_image?: string;
+  overlay_opacity?: number;
+}
+
 export const getSiteSettings = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => getSiteSettingsSchema.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<SiteHeroSettings | null> => {
     const url = process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL;
     const key = process.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     const client = createClient<Database>(url!, key!);
@@ -1483,7 +1592,7 @@ export const getSiteSettings = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (error) throw new Error(error.message);
-    return setting?.value as Record<string, unknown> | null;
+    return (setting?.value as unknown as SiteHeroSettings) || null;
   });
 
 const updateSiteSettingsSchema = z.object({
@@ -1499,7 +1608,7 @@ export const updateSiteSettings = createServerFn({ method: "POST" })
 
     const { error } = await client.from("site_settings").upsert({
       key: data.key,
-      value: data.value,
+      value: data.value as unknown as Json,
       updated_at: new Date().toISOString(),
       updated_by: user.id,
     });

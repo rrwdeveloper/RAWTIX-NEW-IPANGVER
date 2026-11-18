@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { getAdminOrderDetail, updateOrderStatus, syncPaymentStatusForAdmin } from "@/utils/admin.functions";
+import { getAdminOrderDetail, updateOrderStatus, syncPaymentStatusForAdmin, type AdminSyncPaymentResult } from "@/utils/admin.functions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, ExternalLink, RefreshCw } from "lucide-react";
 import { useState } from "react";
@@ -41,8 +41,10 @@ function AdminOrderDetailPage() {
     },
   });
 
-  const syncMutation = useMutation({
-    mutationFn: () => syncPaymentStatusForAdmin({ data: { token: token!, orderId: id } }),
+  const syncMutation = useMutation<AdminSyncPaymentResult, Error, void>({
+    mutationFn: async () => {
+      return (await syncPaymentStatusForAdmin({ data: { token: token!, orderId: id } })) as unknown as AdminSyncPaymentResult;
+    },
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["admin-order", id] });
       queryClient.invalidateQueries({ queryKey: ["admin-orders"] });

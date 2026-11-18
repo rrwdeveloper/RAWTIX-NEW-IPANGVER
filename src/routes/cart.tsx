@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/Footer";
 import { useCart } from "@/hooks/useCart";
 import { formatPrice } from "@/lib/utils";
 import { useStoredOrders } from "@/lib/orderStorage";
+import { READY_STOCK_CATALOGUE, type CatalogueItem } from "@/lib/catalogue";
 
 export const Route = createFileRoute("/cart")({
   component: CartPage,
@@ -134,7 +135,7 @@ function CartPage() {
                       onError={(e) => {
                         // Fallback jika URL gambar di keranjang lama rusak atau path hash Vite berubah
                         const catalogueMatch = READY_STOCK_CATALOGUE.find(
-                          (c) => c.name.toLowerCase() === item.name.toLowerCase() || c.productId === item.productId
+                          (c: CatalogueItem) => c.name.toLowerCase() === item.name.toLowerCase() || c.productId === item.productId
                         );
                         if (catalogueMatch?.image && e.currentTarget.src !== catalogueMatch.image) {
                           e.currentTarget.src = catalogueMatch.image;

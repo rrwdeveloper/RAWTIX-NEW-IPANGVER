@@ -28,6 +28,7 @@ const CATALOGUE_FALLBACK_PRODUCTS: ProductWithRelations[] = READY_STOCK_CATALOGU
   description: item.description,
   status: "active",
   sort_order: idx + 1,
+  featured: false,
   category_id: null,
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
@@ -44,11 +45,11 @@ const CATALOGUE_FALLBACK_PRODUCTS: ProductWithRelations[] = READY_STOCK_CATALOGU
     },
   ],
   product_variants: [
-    { id: `${item.slug}-s`, product_id: item.productId, size: "S", stock: 8, created_at: new Date().toISOString() },
-    { id: `${item.slug}-m`, product_id: item.productId, size: "M", stock: 8, created_at: new Date().toISOString() },
-    { id: `${item.slug}-l`, product_id: item.productId, size: "L", stock: 6, created_at: new Date().toISOString() },
-    { id: `${item.slug}-xl`, product_id: item.productId, size: "XL", stock: 5, created_at: new Date().toISOString() },
-    { id: `${item.slug}-xxl`, product_id: item.productId, size: "XXL", stock: 3, created_at: new Date().toISOString() },
+    { id: `${item.slug}-s`, product_id: item.productId, size: "S", stock: 8, sku: null },
+    { id: `${item.slug}-m`, product_id: item.productId, size: "M", stock: 8, sku: null },
+    { id: `${item.slug}-l`, product_id: item.productId, size: "L", stock: 6, sku: null },
+    { id: `${item.slug}-xl`, product_id: item.productId, size: "XL", stock: 5, sku: null },
+    { id: `${item.slug}-xxl`, product_id: item.productId, size: "XXL", stock: 3, sku: null },
   ],
 }));
 
