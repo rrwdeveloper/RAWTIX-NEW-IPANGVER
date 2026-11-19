@@ -28,7 +28,6 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const [quickViewProduct, setQuickViewProduct] = useState<ComponentProps<typeof QuickViewModal>["product"] | null>(null);
-  const [discount, setDiscount] = useState(false);
 
   // Fetch live homepage hero settings from site_settings (Owner customizable)
   const { data: heroSettings } = useQuery({
@@ -210,18 +209,11 @@ function HomePage() {
                       {item.name}
                     </Link>
                     <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
-                      {discount ? "Rp 1.000" : formatPrice(item.price)}
+                      {formatPrice(item.price)}
                     </p>
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDiscount(!discount)}
-                      className="px-2 py-1 text-xs bg-yellow-600 text-white rounded"
-                    >
-                      Ubah Harga
-                    </button>
                     <button
                       type="button"
                       onClick={() => handleOpenQuickView(item)}
