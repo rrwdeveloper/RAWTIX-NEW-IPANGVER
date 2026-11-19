@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { updateProduct, getAdminProducts, getAdminCategories } from "@/utils/admin.functions";
+import { updateProduct, getAdminProductById, getAdminCategories } from "@/utils/admin.functions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProductForm, type ProductFormData } from "@/components/admin/ProductForm";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/products/$id")({
   component: AdminEditProductPage,
@@ -15,10 +16,10 @@ function AdminEditProductPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: productsData, isLoading: loadingProducts } = useQuery({
-    queryKey: ["admin-products"],
-    queryFn: () => getAdminProducts({ data: { token: token! } }),
-    enabled: !!token,
+  const { data: productData, isLoading: loadingProduct, error: productError } = useQuery({
+    queryKey: ["admin-product", id],
+    queryFn: () => getAdminProductById({ data: { token: token!, id } }),
+    enabled: !!token && !!id,
   });
 
   const { data: catData } = useQuery({
@@ -27,7 +28,7 @@ function AdminEditProductPage() {
     enabled: !!token,
   });
 
-  const product = productsData?.products?.find((p: { id: string }) => p.id === id);
+  const product = productData?.product;
 
   const mutation = useMutation({
     mutationFn: (formData: ProductFormData) =>
@@ -55,16 +56,22 @@ function AdminEditProductPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-product", id] });
+      toast.success("Produk berhasil diperbarui");
       navigate({ to: "/admin/products" });
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Gagal memperbarui produk";
+      toast.error(msg);
     },
   });
 
-  if (loadingProducts) return <div className="text-sm text-muted-foreground">Memuat...</div>;
-  if (!product) {
+  if (loadingProduct) return <div className="text-sm text-muted-foreground py-12 text-center">Memuat detail produk...</div>;
+  if (productError || !product) {
     return (
-      <div className="text-center py-12">
-        <p className="text-sm text-muted-foreground">Produk tidak ditemukan.</p>
-        <Link to="/admin/products" className="text-xs text-foreground hover:underline mt-2 inline-block">← Kembali</Link>
+      <div className="text-center py-12 border border-border">
+        <p className="text-sm text-muted-foreground">Produk tidak ditemukan atau gagal dimuat.</p>
+        <Link to="/admin/products" className="text-xs text-foreground hover:underline mt-2 inline-block">← Kembali ke daftar produk</Link>
       </div>
     );
   }
@@ -98,10 +105,13 @@ function AdminEditProductPage() {
   return (
     <div className="max-w-4xl mx-auto pb-12 space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/admin/products" className="text-muted-foreground hover:text-foreground">
+        <Link to="/admin/products" className="text-muted-foreground hover:text-foreground p-1 transition-colors">
           <ArrowLeft className="w-4 h-4" />
         </Link>
-        <h1 className="font-heading text-xl font-bold tracking-wider uppercase text-foreground">Edit Produk</h1>
+        <div>
+          <h1 className="font-heading text-xl font-bold tracking-wider uppercase text-foreground">Edit Produk</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Ubah rincian, status, varian stok, dan foto produk</p>
+        </div>
       </div>
       <ProductForm
         initialData={initialData}

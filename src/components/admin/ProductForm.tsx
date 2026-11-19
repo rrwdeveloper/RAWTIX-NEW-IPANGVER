@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Upload, Star } from "lucide-react";
+import { Plus, Trash2, Upload, Star, Link as LinkIcon } from "lucide-react";
+import { toast } from "sonner";
 
 interface ImageData {
   id?: string;
@@ -33,7 +34,10 @@ interface Props {
 }
 
 function slugify(str: string) {
-  return str.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 export function ProductForm({ initialData, categories, onSubmit, isSubmitting, error }: Props) {
@@ -54,6 +58,8 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
     }
   );
   const [uploading, setUploading] = useState(false);
+  const [manualUrl, setManualUrl] = useState("");
+  const [showManualUrl, setShowManualUrl] = useState(false);
 
   const update = useCallback(
     <K extends keyof ProductFormData>(key: K, value: ProductFormData[K]) =>
@@ -73,11 +79,18 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
 
     setUploading(true);
     const newImages = [...images];
+    let successCount = 0;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (!file.type.startsWith("image/")) continue;
-      if (file.size > 5 * 1024 * 1024) continue;
+      if (!file.type.startsWith("image/")) {
+        toast.error(`File "${file.name}" bukan gambar`);
+        continue;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error(`File "${file.name}" melebihi ukuran 5MB`);
+        continue;
+      }
 
       const ext = file.name.split(".").pop();
       const path = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
@@ -86,20 +99,50 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
         .from("product-images")
         .upload(path, file, { upsert: true });
 
-      if (!uploadError) {
+      if (uploadError) {
+        toast.error(`Gagal upload "${file.name}": ${uploadError.message}`);
+      } else {
         const { data: urlData } = supabase.storage.from("product-images").getPublicUrl(path);
         newImages.push({
           url: urlData.publicUrl,
           isPrimary: newImages.length === 0,
           sortOrder: newImages.length,
         });
+        successCount++;
       }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} gambar berhasil diunggah`);
     }
 
     update("imageUrls", newImages);
     update("imageUrl", "");
     setUploading(false);
     e.target.value = "";
+  };
+
+  const handleAddManualUrl = () => {
+    const trimmed = manualUrl.trim();
+    if (!trimmed) return;
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://") && !trimmed.startsWith("/")) {
+      toast.error("Format URL gambar tidak valid (harus diawali http/https atau /)");
+      return;
+    }
+
+    const newImages = [
+      ...images,
+      {
+        url: trimmed,
+        isPrimary: images.length === 0,
+        sortOrder: images.length,
+      },
+    ];
+    update("imageUrls", newImages);
+    update("imageUrl", "");
+    setManualUrl("");
+    setShowManualUrl(false);
+    toast.success("Gambar berhasil ditambahkan");
   };
 
   const removeImage = (idx: number) => {
@@ -132,11 +175,25 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const submitData = { ...form };
-    if (images.length > 0) {
-      submitData.imageUrls = images;
-      submitData.imageUrl = "";
+
+    // Clean variants: remove variants without size and trim
+    const cleanedVariants = form.variants
+      .map((v) => ({ ...v, size: v.size.trim(), sku: v.sku?.trim() || undefined }))
+      .filter((v) => v.size.length > 0);
+
+    if (form.status === "preorder" && !form.preorderEstimatedDate) {
+      toast.error("Tanggal estimasi preorder wajib diisi");
+      return;
     }
+
+    const submitData = {
+      ...form,
+      slug: slugify(form.slug || form.name),
+      variants: cleanedVariants,
+      imageUrls: images.length > 0 ? images : [],
+      imageUrl: images.length > 0 ? images[0].url : "",
+    };
+
     onSubmit(submitData);
   };
 
@@ -184,7 +241,37 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
             <input type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" disabled={uploading} />
           </label>
         </div>
-        <p className="text-[10px] text-muted-foreground">Klik ★ untuk set gambar utama. Max 5MB per file.</p>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 mt-2 pt-2 border-t border-border/50 text-[10px]">
+          <p className="text-muted-foreground">Klik ★ untuk set gambar utama. Max 5MB per file.</p>
+          <button
+            type="button"
+            onClick={() => setShowManualUrl(!showManualUrl)}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors underline"
+          >
+            <LinkIcon className="w-3 h-3" />
+            {showManualUrl ? "Tutup input URL" : "Tambah gambar via URL"}
+          </button>
+        </div>
+
+        {showManualUrl && (
+          <div className="flex items-center gap-2 mt-2 pt-2">
+            <input
+              type="url"
+              placeholder="https://... atau /asset/..."
+              value={manualUrl}
+              onChange={(e) => setManualUrl(e.target.value)}
+              className="flex-1 bg-card border border-border px-3 py-1.5 text-xs text-foreground"
+            />
+            <button
+              type="button"
+              onClick={handleAddManualUrl}
+              className="px-3 py-1.5 bg-foreground text-background text-xs uppercase tracking-wider hover:bg-foreground/90 transition-colors"
+            >
+              Tambah
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Name + Slug */}
@@ -204,7 +291,7 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
           <input
             required
             value={form.slug}
-            onChange={(e) => update("slug", e.target.value)}
+            onChange={(e) => update("slug", slugify(e.target.value))}
             className="w-full bg-card border border-border px-3 py-2 text-sm text-foreground"
           />
         </Field>

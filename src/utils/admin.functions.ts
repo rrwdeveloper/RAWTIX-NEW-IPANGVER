@@ -712,15 +712,36 @@ export const getAdminProducts = createServerFn({ method: "POST" })
     return { products: products ?? [] };
   });
 
+const getProductByIdSchema = z.object({
+  token: z.string().min(1),
+  id: z.string().uuid(),
+});
+
+export const getAdminProductById = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => getProductByIdSchema.parse(input))
+  .handler(async ({ data }) => {
+    const { client } = await assertAdmin(data.token);
+
+    const { data: product, error } = await client
+      .from("products")
+      .select("*, categories(name), product_images(id, url, is_primary, sort_order), product_variants(id, size, stock, sku)")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (error) throw new Error("Gagal memuat detail produk: " + error.message);
+    if (!product) throw new Error("Produk tidak ditemukan");
+    return { product };
+  });
+
 const productSchema = z.object({
   token: z.string().min(1),
   name: z.string().min(1).max(255),
   slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/),
   description: z.string().max(5000).optional().default(""),
   price: z.number().int().min(0),
-  categoryId: z.string().uuid().nullable().optional(),
+  categoryId: z.preprocess((val) => (val === "" ? null : val), z.string().uuid().nullable().optional()),
   status: z.enum(["active", "sold_out", "preorder", "draft"]),
-  preorderEstimatedDate: z.string().nullable().optional(),
+  preorderEstimatedDate: z.preprocess((val) => (val === "" ? null : val), z.string().nullable().optional()),
   featured: z.boolean().default(false),
   sortOrder: z.number().int().default(0),
   variants: z.array(z.object({
@@ -817,9 +838,9 @@ const updateProductSchema = z.object({
   slug: z.string().min(1).max(255).regex(/^[a-z0-9-]+$/),
   description: z.string().max(5000).optional().default(""),
   price: z.number().int().min(0),
-  categoryId: z.string().uuid().nullable().optional(),
+  categoryId: z.preprocess((val) => (val === "" ? null : val), z.string().uuid().nullable().optional()),
   status: z.enum(["active", "sold_out", "preorder", "draft"]),
-  preorderEstimatedDate: z.string().nullable().optional(),
+  preorderEstimatedDate: z.preprocess((val) => (val === "" ? null : val), z.string().nullable().optional()),
   featured: z.boolean().default(false),
   sortOrder: z.number().int().default(0),
   variants: z.array(z.object({
@@ -865,7 +886,7 @@ export const updateProduct = createServerFn({ method: "POST" })
       })
       .eq("id", data.id);
 
-    if (error) throw new Error("Gagal mengupdate produk");
+    if (error) throw new Error("Gagal mengupdate produk: " + error.message);
 
     // Replace variants
     const { error: deleteVariantsError } = await client.from("product_variants").delete().eq("product_id", data.id);
@@ -882,17 +903,19 @@ export const updateProduct = createServerFn({ method: "POST" })
     }
 
     // Replace images
-    if (data.imageUrls && data.imageUrls.length > 0) {
+    if (data.imageUrls !== undefined) {
       const { error: deleteImagesError } = await client.from("product_images").delete().eq("product_id", data.id);
       if (deleteImagesError) throw new Error("Gagal memperbarui gambar: " + deleteImagesError.message);
-      const imageRows = data.imageUrls.map((img) => ({
-        product_id: data.id,
-        url: img.url,
-        is_primary: img.isPrimary,
-        sort_order: img.sortOrder,
-      }));
-      const { error: imagesError } = await client.from("product_images").insert(imageRows);
-      if (imagesError) throw new Error("Gagal menyimpan gambar: " + imagesError.message);
+      if (data.imageUrls.length > 0) {
+        const imageRows = data.imageUrls.map((img) => ({
+          product_id: data.id,
+          url: img.url,
+          is_primary: img.isPrimary,
+          sort_order: img.sortOrder,
+        }));
+        const { error: imagesError } = await client.from("product_images").insert(imageRows);
+        if (imagesError) throw new Error("Gagal menyimpan gambar: " + imagesError.message);
+      }
     } else if (data.imageUrl) {
       const { data: existingImg } = await client
         .from("product_images")
@@ -936,13 +959,14 @@ const deleteProductSchema = z.object({
 export const deleteProduct = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => deleteProductSchema.parse(input))
   .handler(async ({ data }) => {
-    const { client, user, role } = await assertOwner(data.token);
+    // Both owner and admin can delete products
+    const { client, user, role } = await assertAdmin(data.token);
     const { data: p } = await client.from("products").select("name").eq("id", data.id).maybeSingle();
     const { error } = await client
       .from("products")
-      .update({ status: "draft" })
+      .delete()
       .eq("id", data.id);
-    if (error) throw new Error("Gagal menghapus produk");
+    if (error) throw new Error("Gagal menghapus produk: " + error.message);
 
     await logUserAction(
       client,
@@ -950,7 +974,7 @@ export const deleteProduct = createServerFn({ method: "POST" })
       role,
       "DELETE_PRODUCT",
       `Hapus Produk: ${p?.name || data.id}`,
-      `Menghapus produk "${p?.name || data.id}" dari etalase aktif (status diubah ke draft).`,
+      `Menghapus produk "${p?.name || data.id}" dari katalog database.`,
       { id: data.id, name: p?.name }
     );
     return { success: true };
