@@ -57,11 +57,11 @@ function HomePage() {
       const { data, error } = await supabase
         .from("products")
         .select("*, product_images(*), product_variants(*)")
-        .eq("status", "active")
         .order("sort_order");
       if (error) return null;
       return data;
     },
+    staleTime: 0,
   });
 
   // Group items according to Saint P layout references:
@@ -70,6 +70,12 @@ function HomePage() {
 
   // 2. Daily Staples (3 items, 3 cols)
   const dailyStaplesItems = READY_STOCK_CATALOGUE.slice(6, 9);
+
+  // Helper: get price from live DB if available, fallback to catalogue
+  const getDisplayPrice = (item: (typeof READY_STOCK_CATALOGUE)[0]): number => {
+    const liveDbMatch = dbProducts?.find((p) => p.slug === item.slug);
+    return liveDbMatch ? liveDbMatch.price : item.price;
+  };
 
   // Helper to open quick view modal for an item
   const handleOpenQuickView = (item: (typeof READY_STOCK_CATALOGUE)[0]) => {
@@ -209,7 +215,7 @@ function HomePage() {
                       {item.name}
                     </Link>
                     <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
-                      {formatPrice(item.price)}
+                      {formatPrice(getDisplayPrice(item))}
                     </p>
                   </div>
 
@@ -286,7 +292,7 @@ function HomePage() {
                       {item.name}
                     </Link>
                     <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
-                      {formatPrice(item.price)}
+                      {formatPrice(getDisplayPrice(item))}
                     </p>
                   </div>
 
