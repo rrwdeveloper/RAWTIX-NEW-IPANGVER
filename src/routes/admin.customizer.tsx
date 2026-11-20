@@ -78,7 +78,52 @@ function AdminCustomizerPage() {
     },
   });
 
-  // Upload image to product-images public bucket
+  // Helper function: kompres & resize gambar otomatis sebelum upload (WebP max 1920px lebar)
+  const compressImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        img.src = e.target?.result as string;
+      };
+
+      img.onload = () => {
+        const maxWidth = 1920;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Konversi otomatis ke WebP kualitas 85% untuk efisiensi loading instan
+          canvas.toBlob(
+            (blob) => {
+              resolve(blob || file);
+            },
+            "image/webp",
+            0.85
+          );
+        } else {
+          resolve(file);
+        }
+      };
+
+      img.onerror = () => resolve(file);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Upload image to product-images public bucket dengan optimasi otomatis
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -87,13 +132,18 @@ function AdminCustomizerPage() {
     setUploadError("");
 
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `hero-custom-${Date.now()}.${fileExt}`;
+      // Kompres otomatis gambar agar tidak berat (7MB -> ~300KB WebP)
+      const optimizedBlob = await compressImage(file);
+      const fileName = `hero-custom-${Date.now()}.webp`;
       const filePath = `hero/${fileName}`;
 
       const { error: uploadErr } = await supabase.storage
         .from("product-images")
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, optimizedBlob, {
+          upsert: true,
+          contentType: "image/webp",
+          cacheControl: "31536000",
+        });
 
       if (uploadErr) throw uploadErr;
 

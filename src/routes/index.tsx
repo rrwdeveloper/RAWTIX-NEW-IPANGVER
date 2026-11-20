@@ -29,6 +29,19 @@ export const Route = createFileRoute("/")({
     const hero = await getHomepageHeroData();
     return { hero };
   },
+  head: ({ loaderData }) => {
+    const heroImg = loaderData?.hero?.background_image?.trim() || heroEnsemble;
+    return {
+      links: [
+        {
+          rel: "preload",
+          as: "image",
+          href: heroImg,
+          fetchPriority: "high" as const,
+        },
+      ],
+    };
+  },
   component: HomePage,
 });
 
