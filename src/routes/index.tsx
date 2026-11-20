@@ -1,6 +1,6 @@
 import { useState, type ComponentProps } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowUpRight, Star, CheckCircle2, MessageCircle, ChevronRight, Sparkles, Scissors, ShieldCheck, HeartHandshake, Users } from "lucide-react";
+import { ArrowUpRight, Star, CheckCircle2, MessageCircle, ChevronRight, Scissors, Users } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { QuickViewModal } from "@/components/product/QuickViewModal";
@@ -636,10 +636,7 @@ function HomePage() {
                   </div>
 
                   <div className="space-y-6">
-                    <div className="flex items-start gap-4 p-5 bg-card/60 border border-border/80">
-                      <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
-                        <Sparkles className="w-5 h-5 text-amber-400" />
-                      </div>
+                    <div className="p-5 bg-card/60 border border-border/80">
                       <div>
                         <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
                           Eksklusivitas &amp; Desain Otentik
@@ -650,10 +647,7 @@ function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4 p-5 bg-card/60 border border-border/80">
-                      <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
-                        <Scissors className="w-5 h-5 text-foreground" />
-                      </div>
+                    <div className="p-5 bg-card/60 border border-border/80">
                       <div>
                         <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
                           Fleksibilitas Ukuran &amp; Pola
@@ -664,10 +658,7 @@ function HomePage() {
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-4 p-5 bg-card/60 border border-border/80">
-                      <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
-                        <HeartHandshake className="w-5 h-5 text-foreground" />
-                      </div>
+                    <div className="p-5 bg-card/60 border border-border/80">
                       <div>
                         <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
                           Pendampingan Konsultasi Acara

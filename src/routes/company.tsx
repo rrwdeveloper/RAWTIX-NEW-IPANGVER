@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, ArrowUpRight, MessageCircle, Sparkles, Scissors, HeartHandshake, Users, Mail, Instagram } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpRight, MessageCircle, Users, Mail, Instagram } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
@@ -347,10 +347,7 @@ function CompanyPage() {
               </div>
 
               <div className="space-y-6">
-                <div className="flex items-start gap-4 p-5 bg-card/60 border border-border">
-                  <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
-                    <Sparkles className="w-5 h-5 text-amber-400" />
-                  </div>
+                <div className="p-5 bg-card/60 border border-border">
                   <div>
                     <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
                       Eksklusivitas &amp; Desain Otentik
@@ -361,10 +358,7 @@ function CompanyPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-5 bg-card/60 border border-border">
-                  <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
-                    <Scissors className="w-5 h-5 text-foreground" />
-                  </div>
+                <div className="p-5 bg-card/60 border border-border">
                   <div>
                     <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
                       Fleksibilitas Ukuran &amp; Pola
@@ -375,10 +369,7 @@ function CompanyPage() {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 p-5 bg-card/60 border border-border">
-                  <div className="p-2.5 bg-foreground/5 text-foreground shrink-0 border border-border">
-                    <HeartHandshake className="w-5 h-5 text-foreground" />
-                  </div>
+                <div className="p-5 bg-card/60 border border-border">
                   <div>
                     <h4 className="font-heading text-sm uppercase tracking-wider text-foreground font-semibold">
                       Pendampingan Konsultasi Acara
