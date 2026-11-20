@@ -19,18 +19,33 @@ import editorialJavas from "../../asset/editorial/rawtix-editorial-javas.webp";
 import editorialVintage from "../../asset/editorial/rawtix-editorial-vintage.webp";
 import editorialTemple from "../../asset/editorial/rawtix-editorial-temple.webp";
 
-import { getHomepageHeroData } from "@/utils/home.functions";
 
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type ProductImageRow = Database["public"]["Tables"]["product_images"]["Row"];
 type ProductVariantRow = Database["public"]["Tables"]["product_variants"]["Row"];
 
+type HomepageHero = {
+  headline?: string;
+  subheadline?: string;
+  cta_text?: string;
+  cta_link?: string;
+  background_image?: string;
+  overlay_opacity?: number;
+  _cacheKey?: string;
+};
+
+const withHeroCacheKey = (url: string, cacheKey?: string) => {
+  if (!url || !cacheKey) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${encodeURIComponent(cacheKey)}`;
+};
+
 export const Route = createFileRoute("/")({
   loader: async () => {
     try {
       const { createClient } = await import("@supabase/supabase-js");
-      const url = import.meta.env.VITE_SUPABASE_URL as string;
-      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      const url = (typeof process !== "undefined" ? process.env.SUPABASE_URL : undefined) || (import.meta.env.VITE_SUPABASE_URL as string);
+      const key = (typeof process !== "undefined" ? process.env.SUPABASE_PUBLISHABLE_KEY : undefined) || (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
       if (url && key) {
         const serverClient = createClient(url, key, {
           auth: { persistSession: false, autoRefreshToken: false },
@@ -38,7 +53,7 @@ export const Route = createFileRoute("/")({
         const [heroRes, productsRes] = await Promise.all([
           serverClient
             .from("site_settings")
-            .select("value")
+            .select("value, updated_at")
             .eq("key", "homepage_hero")
             .maybeSingle(),
           serverClient
@@ -47,14 +62,10 @@ export const Route = createFileRoute("/")({
             .neq("status", "draft")
             .order("sort_order"),
         ]);
-        const hero = (heroRes.data?.value as {
-          headline?: string;
-          subheadline?: string;
-          cta_text?: string;
-          cta_link?: string;
-          background_image?: string;
-          overlay_opacity?: number;
-        }) || null;
+        const heroValue = heroRes.data?.value as Omit<HomepageHero, "_cacheKey"> | null;
+        const hero: HomepageHero | null = heroValue
+          ? { ...heroValue, _cacheKey: heroRes.data?.updated_at || undefined }
+          : null;
         const products = productsRes.data || null;
         return { hero, products };
       }
@@ -63,8 +74,16 @@ export const Route = createFileRoute("/")({
       return { hero: null, products: null };
     }
   },
+  headers: () => ({
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    "Pragma": "no-cache",
+    "Expires": "0",
+  }),
   head: ({ loaderData }) => {
-    const heroImg = loaderData?.hero?.background_image?.trim() || heroEnsemble;
+    const hero = loaderData?.hero as HomepageHero | null;
+    const heroImg = hero?.background_image?.trim()
+      ? withHeroCacheKey(hero.background_image.trim(), hero._cacheKey)
+      : heroEnsemble;
     return {
       links: [
         {
@@ -83,30 +102,9 @@ function HomePage() {
   const loaderData = Route.useLoaderData();
   const [quickViewProduct, setQuickViewProduct] = useState<ComponentProps<typeof QuickViewModal>["product"] | null>(null);
 
-  // Fetch live homepage hero settings from site_settings (Owner customizable)
-  const { data: heroSettings } = useQuery({
-    queryKey: ["homepage_hero_settings"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("site_settings")
-        .select("value")
-        .eq("key", "homepage_hero")
-        .maybeSingle();
-      if (error || !data) return null;
-      return data.value as {
-        headline?: string;
-        subheadline?: string;
-        cta_text?: string;
-        cta_link?: string;
-        background_image?: string;
-        overlay_opacity?: number;
-      };
-    },
-    initialData: loaderData?.hero ?? undefined,
-    staleTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-  });
+  // Hero text and image come only from the SSR route loader. This prevents
+  // React Query cache data from briefly replacing a newly saved hero on refresh.
+  const heroSettings = loaderData?.hero as HomepageHero | null;
 
   // Fetch live products WITH categories relation
   const { data: dbProducts } = useQuery({
@@ -318,7 +316,7 @@ function HomePage() {
         <section className="relative isolate flex min-h-[92vh] sm:min-h-screen items-center justify-center overflow-hidden border-b border-white/10 px-6 py-28 sm:py-36 bg-neutral-950">
           {heroSettings?.background_image?.trim() ? (
             <img
-              src={heroSettings.background_image.trim()}
+              src={withHeroCacheKey(heroSettings.background_image.trim(), heroSettings._cacheKey)}
               alt="Background Hero RAWTIX"
               className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_center] filter brightness-[0.82] contrast-[1.08]"
               fetchPriority="high"
