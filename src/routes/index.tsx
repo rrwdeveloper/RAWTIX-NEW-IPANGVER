@@ -18,19 +18,26 @@ import editorialJavas from "../../asset/editorial/rawtix-editorial-javas.webp";
 import editorialVintage from "../../asset/editorial/rawtix-editorial-vintage.webp";
 import editorialTemple from "../../asset/editorial/rawtix-editorial-temple.webp";
 
+import { getHomepageHeroData } from "@/utils/home.functions";
+
 type ProductRow = Database["public"]["Tables"]["products"]["Row"];
 type ProductImageRow = Database["public"]["Tables"]["product_images"]["Row"];
 type ProductVariantRow = Database["public"]["Tables"]["product_variants"]["Row"];
 
 export const Route = createFileRoute("/")({
+  loader: async () => {
+    const hero = await getHomepageHeroData();
+    return { hero };
+  },
   component: HomePage,
 });
 
 function HomePage() {
+  const loaderData = Route.useLoaderData();
   const [quickViewProduct, setQuickViewProduct] = useState<ComponentProps<typeof QuickViewModal>["product"] | null>(null);
 
   // Fetch live homepage hero settings from site_settings (Owner customizable)
-  const { data: heroSettings, isLoading: isHeroLoading } = useQuery({
+  const { data: heroSettings } = useQuery({
     queryKey: ["homepage_hero_settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,6 +55,7 @@ function HomePage() {
         overlay_opacity?: number;
       };
     },
+    initialData: loaderData?.hero ?? undefined,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
