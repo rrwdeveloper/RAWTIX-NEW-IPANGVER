@@ -64,7 +64,7 @@ function AdminProductsPage() {
           ["active", "Ready Stock"],
           ["preorder", "Pre-order"],
           ["sold_out", "Sold Out"],
-          ["draft", "Draft"],
+          ["draft", "Coming Soon"],
         ] as const).map(([value, label]) => (
           <button
             key={value}
@@ -107,7 +107,7 @@ function AdminProductsPage() {
                     <span className="font-medium text-foreground">Rp {product.price.toLocaleString("id-ID")}</span>
                     <span>·</span>
                     <span className={product.status === "active" ? "text-green-500 font-medium" : product.status === "sold_out" ? "text-red-500 font-medium" : "text-yellow-500 font-medium"}>
-                      {product.status === "active" ? "Ready Stock" : product.status === "preorder" ? "Pre-order" : product.status === "sold_out" ? "Sold Out" : "Draft"}
+                      {product.status === "active" ? "Ready Stock" : product.status === "preorder" ? "Pre-order" : product.status === "sold_out" ? "Sold Out" : "Coming Soon"}
                     </span>
                     <span>·</span>
                     <span>Stok: {totalStock}</span>

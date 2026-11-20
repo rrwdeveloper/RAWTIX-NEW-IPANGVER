@@ -340,7 +340,7 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
             ["active", "Ready Stock"],
             ["preorder", "Pre-order"],
             ["sold_out", "Sold Out"],
-            ["draft", "Draft"],
+            ["draft", "Coming Soon"],
           ] as const).map(([value, label]) => (
             <button
               key={value}
@@ -358,7 +358,7 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
           ))}
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          Ready Stock tampil di katalog utama. Pre-order tampil di katalog pre-order.
+          Ready Stock tampil di katalog utama. Pre-order tampil di katalog pre-order. Coming Soon untuk produk yang akan datang.
         </p>
       </Field>
 

@@ -98,12 +98,12 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
 
           <div className="grid grid-cols-1 md:grid-cols-2">
             {/* Image */}
-            <div className="aspect-square bg-secondary">
+            <div className="relative aspect-[4/5] overflow-hidden flex items-center justify-center">
               {primaryImage?.url ?? fallbackImage ? (
                 <img
                   src={primaryImage?.url ?? fallbackImage}
                   alt={primaryImage?.alt_text ?? product.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs uppercase tracking-widest">

@@ -26,8 +26,27 @@ type ProductVariantRow = Database["public"]["Tables"]["product_variants"]["Row"]
 
 export const Route = createFileRoute("/")({
   loader: async () => {
-    const hero = await getHomepageHeroData();
-    return { hero };
+    try {
+      const hero = await getHomepageHeroData();
+      const { createClient } = await import("@supabase/supabase-js");
+      const url = import.meta.env.VITE_SUPABASE_URL as string;
+      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      let products = null;
+      if (url && key) {
+        const serverClient = createClient(url, key, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+        const { data } = await serverClient
+          .from("products")
+          .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
+          .neq("status", "draft")
+          .order("sort_order");
+        products = data;
+      }
+      return { hero, products };
+    } catch {
+      return { hero: null, products: null };
+    }
   },
   head: ({ loaderData }) => {
     const heroImg = loaderData?.hero?.background_image?.trim() || heroEnsemble;
@@ -86,6 +105,7 @@ function HomePage() {
       if (error) return null;
       return data;
     },
+    initialData: loaderData?.products ?? undefined,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
@@ -114,6 +134,7 @@ function HomePage() {
     series: (p.name.split(" ")[0] || "Signature"),
     price: p.price,
     description: p.description || "",
+    status: p.status,
     image: getProductImage(p, p),
     rawProduct: p,
   });
@@ -129,6 +150,7 @@ function HomePage() {
       })()
     : READY_STOCK_CATALOGUE.slice(0, 6).map((c) => ({
         ...c,
+        status: "active",
         rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
       }));
 
@@ -247,7 +269,12 @@ function HomePage() {
 
           {/* 3-Column Product Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
-            {signatureItems.map((item, index) => (
+            {signatureItems.map((item, index) => {
+              const liveDbMatch = item.rawProduct || dbProducts?.find((p) => p.slug === item.slug);
+              const isSoldOut = (liveDbMatch?.status ?? item.status) === "sold_out";
+              const isPreorder = (liveDbMatch?.status ?? item.status) === "preorder";
+
+              return (
               <div
                 key={item.slug}
                 className={`group relative flex flex-col bg-card/40 border transition-all duration-300 ${
@@ -272,6 +299,17 @@ function HomePage() {
                   <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-xs text-white/90 px-2 py-0.5 text-[10px] tracking-[0.2em] uppercase border border-white/10">
                     {item.series}
                   </div>
+
+                  {isSoldOut && (
+                    <div className="absolute top-3 right-3 bg-destructive/90 text-destructive-foreground px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
+                      Sold Out
+                    </div>
+                  )}
+                  {isPreorder && (
+                    <div className="absolute top-3 right-3 bg-foreground/90 text-background px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
+                      Pre-Order
+                    </div>
+                  )}
                 </Link>
 
                 {/* Product Details Bar */}
@@ -290,13 +328,19 @@ function HomePage() {
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenQuickView(item)}
-                      className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border hover:border-foreground hover:bg-foreground hover:text-background transition-all text-center"
-                    >
-                      Pilih Opsi
-                    </button>
+                    {isSoldOut ? (
+                      <span className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border text-muted-foreground bg-muted/20 text-center cursor-not-allowed">
+                        Sold Out
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenQuickView(item)}
+                        className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border hover:border-foreground hover:bg-foreground hover:text-background transition-all text-center"
+                      >
+                        Pilih Opsi
+                      </button>
+                    )}
                     <Link
                       to="/product/$slug"
                       params={{ slug: item.slug }}
@@ -309,7 +353,8 @@ function HomePage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );
+            })}
           </div>
         </section>
 

@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useState } from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
@@ -20,11 +20,32 @@ type ProductWithRelations = Product & {
 };
 
 export const Route = createFileRoute("/product/$slug")({
+  loader: async ({ params }) => {
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const url = import.meta.env.VITE_SUPABASE_URL as string;
+      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      if (!url || !key) return { product: null };
+      const serverClient = createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data, error } = await serverClient
+        .from("products")
+        .select("*, product_images(*), product_variants(*)")
+        .eq("slug", params.slug)
+        .maybeSingle();
+      if (error) return { product: null };
+      return { product: data as ProductWithRelations | null };
+    } catch {
+      return { product: null };
+    }
+  },
   component: ProductDetailPage,
 });
 
 function ProductDetailPage() {
   const { slug } = Route.useParams();
+  const loaderData = Route.useLoaderData();
   const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -45,6 +66,7 @@ function ProductDetailPage() {
         return null;
       }
     },
+    initialData: loaderData?.product ?? undefined,
     staleTime: 0,
     refetchOnMount: "always",
   });
@@ -159,20 +181,44 @@ function ProductDetailPage() {
     toast.success("Ditambahkan ke keranjang");
   };
 
+  const router = useRouter();
+
+  const handleClose = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.history.back();
+    } else {
+      router.navigate({ to: "/#signature-pieces" });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
       <Header />
 
-      <main className="pt-[72px] px-4 sm:px-6 md:px-10 py-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 max-w-5xl mx-auto">
+      <main className="flex-1 pt-24 sm:pt-28 pb-16 px-4 sm:px-6 md:px-10 flex flex-col justify-center">
+        <div className="w-full max-w-5xl mx-auto">
+          {/* Top navigation bar with single Close (X) button */}
+          <div className="flex items-center justify-end pb-4 mb-2 border-b border-border/40">
+            <button
+              type="button"
+              onClick={handleClose}
+              aria-label="Tutup dan kembali"
+              className="p-2 rounded-full border border-border/60 text-muted-foreground hover:text-foreground hover:border-foreground hover:bg-card transition-all"
+              title="Tutup (Kembali)"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mt-6">
           {/* Image Gallery */}
           <div className="space-y-3">
-            <div className="aspect-square bg-card overflow-hidden">
+            <div className="relative aspect-[4/5] overflow-hidden flex items-center justify-center">
               {activeImageUrl ? (
                 <img
                   src={activeImageUrl}
                   alt={activeImage?.alt_text ?? product.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs uppercase tracking-widest">
@@ -222,31 +268,41 @@ function ProductDetailPage() {
             {/* Size */}
             <div className="mt-8">
               <p className="text-xs tracking-[0.2em] uppercase mb-3">Ukuran</p>
-              <div className="flex flex-wrap gap-2">
-                {variants.map((v) => {
-                  const outOfStock = v.stock <= 0 && !isPreorder;
-                  return (
-                    <button
-                      key={v.id}
-                      onClick={() => !outOfStock && setSelectedSize(v.size)}
-                      disabled={outOfStock}
-                      className={`px-4 py-2 text-xs tracking-wider uppercase border transition-colors ${
-                        selectedSize === v.size
-                          ? "bg-foreground text-background border-foreground"
-                          : outOfStock
-                            ? "border-border text-muted-foreground/40 cursor-not-allowed line-through"
-                            : "border-border text-foreground hover:border-foreground"
-                      }`}
-                    >
-                      {v.size}
-                    </button>
-                  );
-                })}
-              </div>
+              {isLoading ? (
+                <div className="flex flex-wrap gap-2">
+                  {["S", "M", "L", "XL", "XXL"].map((s) => (
+                    <div key={s} className="px-4 py-2 text-xs tracking-wider uppercase border border-border text-muted-foreground/30 animate-pulse cursor-not-allowed select-none">
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {variants.map((v) => {
+                    const outOfStock = (v.stock <= 0 && !isPreorder) || isSoldOut;
+                    return (
+                      <button
+                        key={v.id}
+                        onClick={() => !outOfStock && setSelectedSize(v.size)}
+                        disabled={outOfStock}
+                        className={`px-4 py-2 text-xs tracking-wider uppercase border transition-colors ${
+                          selectedSize === v.size
+                            ? "bg-foreground text-background border-foreground"
+                            : outOfStock
+                              ? "border-border text-muted-foreground/40 cursor-not-allowed line-through"
+                              : "border-border text-foreground hover:border-foreground"
+                        }`}
+                      >
+                        {v.size}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {/* Quantity */}
-            {!isSoldOut && (
+            {/* Quantity — only shown after DB resolves and product is not sold out */}
+            {!isLoading && !isSoldOut && (
               <div className="mt-6">
                 <p className="text-xs tracking-[0.2em] uppercase mb-3">Jumlah</p>
                 <div className="flex items-center border border-border w-fit">
@@ -275,9 +331,11 @@ function ProductDetailPage() {
               </div>
             )}
 
-            {/* Actions */}
+            {/* Actions — always wait for DB before showing real button */}
             <div className="mt-8 space-y-3">
-              {isSoldOut ? (
+              {isLoading ? (
+                <div className="w-full py-3 bg-muted animate-pulse" />
+              ) : isSoldOut ? (
                 <button
                   disabled
                   className="w-full py-3 text-xs tracking-[0.2em] uppercase bg-muted text-muted-foreground cursor-not-allowed"
@@ -304,6 +362,7 @@ function ProductDetailPage() {
               </div>
             )}
           </div>
+        </div>
         </div>
       </main>
 
