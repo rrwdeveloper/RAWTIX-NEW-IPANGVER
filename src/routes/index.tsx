@@ -106,7 +106,6 @@ function HomePage() {
 
   // Group items by category slug from DB (dynamic — follows CMS changes)
   // "Signature Pieces" = products whose category slug = "signature-pieces"
-  // "Daily Staples"    = products whose category slug = "daily-staples"
   // If DB has no categories assigned, fall back to position slices for backwards compat
   const mapDbProduct = (p: NonNullable<typeof dbProducts>[0]) => ({
     productId: p.id,
@@ -129,19 +128,6 @@ function HomePage() {
         return (byCat.length > 0 ? byCat : dbProducts).map(mapDbProduct);
       })()
     : READY_STOCK_CATALOGUE.slice(0, 6).map((c) => ({
-        ...c,
-        rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
-      }));
-
-  const dailyStaplesItems = hasDbProducts && dbProducts
-    ? (() => {
-        const byCat = dbProducts.filter(
-          (p) => (p as typeof p & { categories?: { slug?: string } | null }).categories?.slug === "daily-staples"
-        );
-        // Only show Daily Staples section if products explicitly categorised as such
-        return byCat.map(mapDbProduct);
-      })()
-    : READY_STOCK_CATALOGUE.slice(6, 9).map((c) => ({
         ...c,
         rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
       }));
@@ -328,86 +314,7 @@ function HomePage() {
         </section>
 
         {/* ============================================================== */}
-        {/* SECTION 2: DAILY STAPLES — only shown when category exists in DB */}
-        {/* ============================================================== */}
-        {dailyStaplesItems.length > 0 && (
-        <section id="daily-staples" className="px-4 sm:px-8 md:px-14 py-20 sm:py-28 max-w-7xl mx-auto border-t border-border">
-          {/* Section Header with Spencerian Cursive Title */}
-          <div className="text-center mb-14 sm:mb-20">
-            <h2 className="font-script text-5xl sm:text-7xl md:text-8xl text-foreground font-normal tracking-wide">
-              Daily Staples
-            </h2>
-            <p className="mt-2 text-xs sm:text-sm font-bold tracking-[0.22em] uppercase text-foreground/90">
-              ELEVATED BASICS FOR EVERYDAY WEAR
-            </p>
-          </div>
-
-          {/* 3-Column Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
-            {dailyStaplesItems.map((item) => (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col bg-card/40 border border-border hover:border-foreground/40 hover:shadow-md transition-all duration-300"
-              >
-                {/* Product Image Frame */}
-                <Link
-                  to="/product/$slug"
-                  params={{ slug: item.slug }}
-                  className="relative aspect-[4/5] overflow-hidden bg-neutral-900/40 block"
-                >
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-                    loading="lazy"
-                  />
-                  <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-xs text-white/90 px-2 py-0.5 text-[10px] tracking-[0.2em] uppercase border border-white/10">
-                    {item.series}
-                  </div>
-                </Link>
-
-                {/* Product Details Bar */}
-                <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 border-t border-border bg-card/60">
-                  <div>
-                    <Link
-                      to="/product/$slug"
-                      params={{ slug: item.slug }}
-                      className="block font-heading text-xs sm:text-sm uppercase tracking-[0.14em] text-foreground hover:text-muted-foreground transition-colors"
-                    >
-                      {item.name}
-                    </Link>
-                    <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
-                      {formatPrice(getDisplayPrice(item))}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenQuickView(item)}
-                      className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border hover:border-foreground hover:bg-foreground hover:text-background transition-all text-center"
-                    >
-                      Pilih Opsi
-                    </button>
-                    <Link
-                      to="/product/$slug"
-                      params={{ slug: item.slug }}
-                      className="p-2 border border-border hover:border-foreground text-muted-foreground hover:text-foreground transition-colors"
-                      title="Lihat Detail"
-                      aria-label={`Detail ${item.name}`}
-                    >
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-        )}
-
-        {/* ============================================================== */}
-        {/* SECTION 3: THE ATELIER & COMPANY PROFILE CORE                  */}
+        {/* SECTION 2: THE ATELIER & COMPANY PROFILE CORE                  */}
         {/* (From PDF: FILE RAWTIX_compressed.pdf - Base Colour: Hitam Abu) */}
         {/* ============================================================== */}
         <section id="bespoke" className="border-t border-border bg-card/25 py-24 sm:py-32">

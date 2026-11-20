@@ -187,15 +187,6 @@ export function Header() {
                       </a>
                     </li>
                     <li>
-                      <a
-                        href="/#daily-staples"
-                        onClick={() => setMenuOpen(false)}
-                        className="block text-foreground hover:text-muted-foreground transition-colors"
-                      >
-                        Daily Staples
-                      </a>
-                    </li>
-                    <li>
                       <Link
                         to="/shop"
                         onClick={() => setMenuOpen(false)}
