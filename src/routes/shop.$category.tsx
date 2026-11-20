@@ -35,6 +35,9 @@ function CategoryPage() {
       if (error) throw error;
       return data;
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const { data: products, isLoading } = useQuery({
@@ -51,6 +54,9 @@ function CategoryPage() {
       return data as ProductWithRelations[];
     },
     enabled: !!categoryData,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return (

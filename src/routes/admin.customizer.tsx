@@ -70,6 +70,9 @@ function AdminCustomizerPage() {
       queryClient.invalidateQueries({ queryKey: ["admin_site_settings_hero"] });
       queryClient.invalidateQueries({ queryKey: ["homepage_hero_settings"] });
       queryClient.invalidateQueries({ queryKey: ["admin-user-logs"] });
+      // Optimistically update homepage hero cache immediately
+      queryClient.setQueryData(["homepage_hero_settings"], form);
+      queryClient.setQueryData(["admin_site_settings_hero"], form);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     },

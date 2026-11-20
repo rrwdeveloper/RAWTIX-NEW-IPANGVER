@@ -35,6 +35,9 @@ function PreOrderPage() {
       if (error) throw error;
       return data as ProductWithRelations[];
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   return (

@@ -30,7 +30,7 @@ function HomePage() {
   const [quickViewProduct, setQuickViewProduct] = useState<ComponentProps<typeof QuickViewModal>["product"] | null>(null);
 
   // Fetch live homepage hero settings from site_settings (Owner customizable)
-  const { data: heroSettings } = useQuery({
+  const { data: heroSettings, isLoading: isHeroLoading } = useQuery({
     queryKey: ["homepage_hero_settings"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -48,6 +48,9 @@ function HomePage() {
         overlay_opacity?: number;
       };
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Fetch live products if available
@@ -57,30 +60,74 @@ function HomePage() {
       const { data, error } = await supabase
         .from("products")
         .select("*, product_images(*), product_variants(*)")
+        .neq("status", "draft")
         .order("sort_order");
       if (error) return null;
       return data;
     },
     staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
-  // Group items according to Saint P layout references:
-  // 1. Signature Pieces (6 bestselling items, 3 cols x 2 rows)
-  const signatureItems = READY_STOCK_CATALOGUE.slice(0, 6);
+  // Use database products dynamically if present, fallback to static catalogue only if DB is empty
+  const hasDbProducts = Boolean(dbProducts && dbProducts.length > 0);
 
-  // 2. Daily Staples (3 items, 3 cols)
-  const dailyStaplesItems = READY_STOCK_CATALOGUE.slice(6, 9);
+  // Helper to extract primary or first image from DB product, fallback to static catalogue image
+  const getProductImage = (item: { slug: string }, dbItem?: typeof dbProducts extends (infer T)[] ? T : never) => {
+    if (dbItem?.product_images && dbItem.product_images.length > 0) {
+      const primary = dbItem.product_images.find((img) => img.is_primary) ?? dbItem.product_images[0];
+      if (primary?.url) return primary.url;
+    }
+    const catalogueMatch = READY_STOCK_CATALOGUE.find((c) => c.slug === item.slug);
+    return catalogueMatch?.image || "";
+  };
+
+  // Group items according to Saint P layout references:
+  // 1. Signature Pieces: first 6 products (from DB if available, else static)
+  const signatureItems = hasDbProducts && dbProducts
+    ? dbProducts.slice(0, 6).map((p) => ({
+        productId: p.id,
+        name: p.name,
+        slug: p.slug,
+        series: (p.name.split(" ")[0] || "Signature"),
+        price: p.price,
+        description: p.description || "",
+        image: getProductImage(p, p),
+        rawProduct: p,
+      }))
+    : READY_STOCK_CATALOGUE.slice(0, 6).map((c) => ({
+        ...c,
+        rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
+      }));
+
+  // 2. Daily Staples: next products (index 6 to 9)
+  const dailyStaplesItems = hasDbProducts && dbProducts
+    ? dbProducts.slice(6, 9).map((p) => ({
+        productId: p.id,
+        name: p.name,
+        slug: p.slug,
+        series: (p.name.split(" ")[0] || "Staples"),
+        price: p.price,
+        description: p.description || "",
+        image: getProductImage(p, p),
+        rawProduct: p,
+      }))
+    : READY_STOCK_CATALOGUE.slice(6, 9).map((c) => ({
+        ...c,
+        rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
+      }));
 
   // Helper: get price from live DB if available, fallback to catalogue
-  const getDisplayPrice = (item: (typeof READY_STOCK_CATALOGUE)[0]): number => {
+  const getDisplayPrice = (item: { slug: string; price: number }): number => {
     const liveDbMatch = dbProducts?.find((p) => p.slug === item.slug);
     return liveDbMatch ? liveDbMatch.price : item.price;
   };
 
   // Helper to open quick view modal for an item
-  const handleOpenQuickView = (item: (typeof READY_STOCK_CATALOGUE)[0]) => {
+  const handleOpenQuickView = (item: (typeof signatureItems)[0]) => {
     // Check if live db product exists
-    const liveDbMatch = dbProducts?.find((p) => p.slug === item.slug);
+    const liveDbMatch = item.rawProduct || dbProducts?.find((p) => p.slug === item.slug);
     if (liveDbMatch) {
       setQuickViewProduct(liveDbMatch);
       return;
@@ -130,7 +177,8 @@ function HomePage() {
         {/* ============================================================== */}
         <section className="relative isolate flex min-h-[92vh] sm:min-h-screen items-center justify-center overflow-hidden border-b border-white/10 px-6 py-28 sm:py-36">
           <img
-            src={heroSettings?.background_image || heroEnsemble}
+            key={heroSettings?.background_image || "default-hero"}
+            src={heroSettings?.background_image?.trim() ? heroSettings.background_image.trim() : heroEnsemble}
             alt="Model RAWTIX mengenakan koleksi modern heritage batik dengan Mandarin collar dan fireman clasp"
             className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_center] filter brightness-[0.82] contrast-[1.08] transition-opacity duration-700"
             fetchPriority="high"

@@ -45,6 +45,8 @@ function ProductDetailPage() {
         return null;
       }
     },
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   const catalogueItem = READY_STOCK_CATALOGUE.find((item) => item.slug === slug);

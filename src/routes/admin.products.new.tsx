@@ -50,6 +50,8 @@ function AdminNewProductPage() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["homepage-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Produk berhasil ditambahkan");
       navigate({ to: "/admin/products" });
     },

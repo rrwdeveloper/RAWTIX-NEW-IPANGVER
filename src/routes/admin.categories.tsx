@@ -33,7 +33,11 @@ function AdminCategoriesPage() {
     enabled: !!token,
   });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+    queryClient.invalidateQueries({ queryKey: ["homepage-products"] });
+    queryClient.invalidateQueries({ queryKey: ["products"] });
+  };
 
   const createMutation = useMutation({
     mutationFn: () => createCategory({ data: { token: token!, ...form } }),

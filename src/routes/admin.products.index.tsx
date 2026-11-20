@@ -31,6 +31,8 @@ function AdminProductsPage() {
     mutationFn: (id: string) => deleteProduct({ data: { token: token!, id } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["homepage-products"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
       toast.success("Produk berhasil dihapus");
       setDeleteId(null);
     },

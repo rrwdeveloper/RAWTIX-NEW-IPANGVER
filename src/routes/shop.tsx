@@ -66,7 +66,7 @@ function ShopPage() {
         const { data, error } = await supabase
           .from("products")
           .select("*, product_images(*), product_variants(*)")
-          .eq("status", "active")
+          .neq("status", "draft")
           .order("sort_order");
         if (error) return null;
         return data as ProductWithRelations[];
@@ -74,6 +74,9 @@ function ShopPage() {
         return null;
       }
     },
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   // Use database products if available and non-empty, otherwise use full ready stock catalogue
