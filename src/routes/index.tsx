@@ -190,14 +190,22 @@ function HomePage() {
         {/* ============================================================== */}
         {/* HERO SECTION (Foto 1: media_1792608740375_ec9d34f5.jpg)         */}
         {/* ============================================================== */}
-        <section className="relative isolate flex min-h-[92vh] sm:min-h-screen items-center justify-center overflow-hidden border-b border-white/10 px-6 py-28 sm:py-36">
-          <img
-            key={heroSettings?.background_image || "default-hero"}
-            src={heroSettings?.background_image?.trim() ? heroSettings.background_image.trim() : heroEnsemble}
-            alt="Model RAWTIX mengenakan koleksi modern heritage batik dengan Mandarin collar dan fireman clasp"
-            className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_center] filter brightness-[0.82] contrast-[1.08] transition-opacity duration-700"
-            fetchPriority="high"
-          />
+        <section className="relative isolate flex min-h-[92vh] sm:min-h-screen items-center justify-center overflow-hidden border-b border-white/10 px-6 py-28 sm:py-36 bg-neutral-950">
+          {heroSettings?.background_image?.trim() ? (
+            <img
+              src={heroSettings.background_image.trim()}
+              alt="Background Hero RAWTIX"
+              className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_center] filter brightness-[0.82] contrast-[1.08]"
+              fetchPriority="high"
+            />
+          ) : (
+            <img
+              src={heroEnsemble}
+              alt="Model RAWTIX mengenakan koleksi modern heritage batik dengan Mandarin collar dan fireman clasp"
+              className="absolute inset-0 -z-20 h-full w-full object-cover object-[52%_center] filter brightness-[0.82] contrast-[1.08]"
+              fetchPriority="high"
+            />
+          )}
           {/* Subtle dark gradient overlay for black/grey dominance (opacity controllable by Owner) */}
           <div
             className="absolute inset-0 -z-10 bg-gradient-to-b from-black/60 via-black/45 to-black/85 transition-opacity duration-300"
