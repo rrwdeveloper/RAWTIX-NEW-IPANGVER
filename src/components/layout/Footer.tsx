@@ -128,7 +128,7 @@ export function Footer() {
                 className="flex items-center gap-2.5 hover:text-foreground transition-colors"
               >
                 <span className="w-4 text-center font-serif text-sm">@</span>
-                <span>rawtix.official@gmail.com</span>
+                <span>yokepongkytr@gmail.com</span>
               </a>
               <p className="pt-1 text-[11px] text-muted-foreground/70">
                 Jakarta, Indonesia

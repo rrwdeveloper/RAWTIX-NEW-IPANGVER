@@ -502,10 +502,10 @@ function CompanyPage() {
                       Email
                     </span>
                     <a
-                      href="mailto:rawtix.official@gmail.com"
+                      href="mailto:yokepongkytr@gmail.com"
                       className="font-medium text-foreground hover:text-muted-foreground transition-colors mt-0.5 inline-block"
                     >
-                      rawtix.official@gmail.com
+                      yokepongkytr@gmail.com
                     </a>
                   </div>
 
