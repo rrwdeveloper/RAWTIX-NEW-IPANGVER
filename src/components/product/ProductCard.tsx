@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { Database } from "@/integrations/supabase/types";
 import { formatPrice } from "@/lib/utils";
 import { READY_STOCK_CATALOGUE } from "@/lib/catalogue";
+import { ProductStatusBadge } from "./ProductStatusBadge";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
@@ -19,6 +20,8 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
   )?.image;
 
   const isSoldOut = product.status === "sold_out";
+  const isComingSoon = product.status === "coming_soon";
+  const isPreorder = product.status === "preorder";
 
   return (
     <div className="group w-full text-left">
@@ -27,12 +30,14 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
         params={{ slug: product.slug }}
         className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <div className="relative mb-4 aspect-square overflow-hidden bg-card">
+        <div className="relative mb-3 sm:mb-4 aspect-square overflow-hidden bg-card">
           {primaryImage?.url ?? fallbackImage ? (
             <img
               src={primaryImage?.url ?? fallbackImage}
               alt={primaryImage?.alt_text ?? product.name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03] ${
+                isSoldOut ? "grayscale-[35%]" : ""
+              }`}
               loading="lazy"
             />
           ) : (
@@ -43,16 +48,7 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
             </div>
           )}
 
-          {isSoldOut && (
-            <div className="absolute top-3 left-3 bg-destructive/90 text-destructive-foreground px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
-              Sold Out
-            </div>
-          )}
-          {product.status === "preorder" && (
-            <div className="absolute top-3 left-3 bg-foreground/90 text-background px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
-              Pre-Order
-            </div>
-          )}
+          <ProductStatusBadge status={product.status} />
         </div>
 
         <h3 className="font-heading text-xs uppercase tracking-[0.18em] text-foreground">
@@ -63,7 +59,23 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
         </p>
       </Link>
 
-      {!isSoldOut && (
+      {isSoldOut ? (
+        <button
+          type="button"
+          disabled
+          className="mt-2.5 sm:mt-3 w-full border border-border py-1.5 sm:py-2 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground bg-muted/20 cursor-not-allowed"
+        >
+          Sold Out
+        </button>
+      ) : isComingSoon ? (
+        <button
+          type="button"
+          disabled
+          className="mt-2.5 sm:mt-3 w-full border border-sky-400/20 py-1.5 sm:py-2 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-sky-400/80 bg-muted/20 cursor-not-allowed"
+        >
+          Coming Soon
+        </button>
+      ) : (
         <button
           type="button"
           onClick={(e) => {
@@ -71,9 +83,9 @@ export function ProductCard({ product, onQuickView }: ProductCardProps) {
             e.preventDefault();
             onQuickView();
           }}
-          className="mt-3 w-full border border-foreground/20 py-2 text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition-all duration-300 hover:border-foreground hover:text-foreground"
+          className="mt-2.5 sm:mt-3 w-full border border-foreground/20 py-1.5 sm:py-2 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-muted-foreground transition-all duration-300 hover:border-foreground hover:text-foreground"
         >
-          Pilih Opsi
+          {isPreorder ? "Pre-Order" : "Pilih Opsi"}
         </button>
       )}
     </div>

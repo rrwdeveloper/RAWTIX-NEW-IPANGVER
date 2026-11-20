@@ -4,6 +4,7 @@ import { ArrowUpRight, Star, CheckCircle2, MessageCircle, ChevronRight, Sparkles
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { QuickViewModal } from "@/components/product/QuickViewModal";
+import { ProductStatusBadge } from "@/components/product/ProductStatusBadge";
 import { READY_STOCK_CATALOGUE } from "@/lib/catalogue";
 import { formatPrice } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,23 +28,37 @@ type ProductVariantRow = Database["public"]["Tables"]["product_variants"]["Row"]
 export const Route = createFileRoute("/")({
   loader: async () => {
     try {
-      const hero = await getHomepageHeroData();
       const { createClient } = await import("@supabase/supabase-js");
       const url = import.meta.env.VITE_SUPABASE_URL as string;
       const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-      let products = null;
       if (url && key) {
         const serverClient = createClient(url, key, {
           auth: { persistSession: false, autoRefreshToken: false },
         });
-        const { data } = await serverClient
-          .from("products")
-          .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
-          .neq("status", "draft")
-          .order("sort_order");
-        products = data;
+        const [heroRes, productsRes] = await Promise.all([
+          serverClient
+            .from("site_settings")
+            .select("value")
+            .eq("key", "homepage_hero")
+            .maybeSingle(),
+          serverClient
+            .from("products")
+            .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
+            .neq("status", "draft")
+            .order("sort_order"),
+        ]);
+        const hero = (heroRes.data?.value as {
+          headline?: string;
+          subheadline?: string;
+          cta_text?: string;
+          cta_link?: string;
+          background_image?: string;
+          overlay_opacity?: number;
+        }) || null;
+        const products = productsRes.data || null;
+        return { hero, products };
       }
-      return { hero, products };
+      return { hero: null, products: null };
     } catch {
       return { hero: null, products: null };
     }
@@ -203,6 +218,100 @@ function HomePage() {
     });
   };
 
+  const getProductStatus = (item: (typeof signatureItems)[0]) => {
+    const liveDbMatch = item.rawProduct || dbProducts?.find((p) => p.slug === item.slug);
+    return liveDbMatch?.status ?? item.status;
+  };
+
+  const readyStockItems = signatureItems.filter((i) => getProductStatus(i) === "active");
+  const comingSoonItems = signatureItems.filter((i) => getProductStatus(i) === "coming_soon");
+  const preOrderItems = signatureItems.filter((i) => getProductStatus(i) === "preorder");
+  const soldOutItems = signatureItems.filter((i) => getProductStatus(i) === "sold_out");
+  const otherItems = signatureItems.filter(
+    (i) => !["active", "coming_soon", "preorder", "sold_out"].includes(getProductStatus(i))
+  );
+
+  const renderSignatureCard = (item: (typeof signatureItems)[0], index: number) => {
+    const status = getProductStatus(item);
+    const isSoldOut = status === "sold_out";
+    const isComingSoon = status === "coming_soon";
+    const isPreorder = status === "preorder";
+
+    return (
+      <div
+        key={item.slug}
+        className={`group relative flex flex-col bg-card/40 border transition-all duration-300 ${
+          index === 0 && !isSoldOut
+            ? "border-foreground/35 shadow-lg"
+            : "border-border hover:border-foreground/40 hover:shadow-md"
+        } ${isSoldOut ? "opacity-75 hover:opacity-100" : ""}`}
+      >
+        {/* Product Image Frame */}
+        <Link
+          to="/product/$slug"
+          params={{ slug: item.slug }}
+          className="relative aspect-[4/5] overflow-hidden bg-neutral-900/40 block"
+        >
+          <img
+            src={item.image}
+            alt={item.name}
+            className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] ${
+              isSoldOut ? "grayscale-[35%]" : ""
+            }`}
+            loading={index < 3 ? "eager" : "lazy"}
+          />
+
+          <ProductStatusBadge status={status} />
+        </Link>
+
+        {/* Product Details Bar */}
+        <div className="p-3 sm:p-5 flex flex-col justify-between flex-1 border-t border-border bg-card/60">
+          <div>
+            <Link
+              to="/product/$slug"
+              params={{ slug: item.slug }}
+              className="block font-heading text-xs sm:text-sm uppercase tracking-[0.14em] text-foreground hover:text-muted-foreground transition-colors line-clamp-1"
+            >
+              {item.name}
+            </Link>
+            <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
+              {formatPrice(getDisplayPrice(item))}
+            </p>
+          </div>
+
+          <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-border/60 flex items-center gap-1.5 sm:gap-2">
+            {isSoldOut ? (
+              <span className="flex-1 py-1.5 sm:py-2 text-[9px] sm:text-xs uppercase tracking-[0.16em] font-medium border border-border text-muted-foreground bg-muted/20 text-center cursor-not-allowed">
+                Sold Out
+              </span>
+            ) : isComingSoon ? (
+              <span className="flex-1 py-1.5 sm:py-2 text-[9px] sm:text-xs uppercase tracking-[0.16em] font-medium border border-sky-400/20 text-sky-400/80 bg-muted/20 text-center cursor-not-allowed">
+                Coming Soon
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenQuickView(item)}
+                className="flex-1 py-1.5 sm:py-2 text-[9px] sm:text-xs uppercase tracking-[0.16em] font-medium border border-border hover:border-foreground hover:bg-foreground hover:text-background transition-all text-center"
+              >
+                {isPreorder ? "Pre-Order" : "Pilih Opsi"}
+              </button>
+            )}
+            <Link
+              to="/product/$slug"
+              params={{ slug: item.slug }}
+              className="p-1.5 sm:p-2 border border-border hover:border-foreground text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              title="Lihat Detail"
+              aria-label={`Detail ${item.name}`}
+            >
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-background text-foreground selection:bg-neutral-800 selection:text-white">
       <Header />
@@ -255,10 +364,11 @@ function HomePage() {
 
         {/* ============================================================== */}
         {/* SECTION 1: SIGNATURE PIECES (Foto 2 & 3: Saint P reference)    */}
+        {/* Prioritas Status: Ready Stock -> Coming Soon -> Pre-Order -> Sold Out */}
         {/* ============================================================== */}
         <section id="signature-pieces" className="px-4 sm:px-8 md:px-14 py-20 sm:py-28 max-w-7xl mx-auto">
           {/* Section Header with Spencerian Cursive Title */}
-          <div className="text-center mb-14 sm:mb-20">
+          <div className="text-center mb-12 sm:mb-16">
             <h2 className="font-script text-5xl sm:text-7xl md:text-8xl text-foreground font-normal tracking-wide">
               Signature Pieces
             </h2>
@@ -267,94 +377,73 @@ function HomePage() {
             </p>
           </div>
 
-          {/* 3-Column Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
-            {signatureItems.map((item, index) => {
-              const liveDbMatch = item.rawProduct || dbProducts?.find((p) => p.slug === item.slug);
-              const isSoldOut = (liveDbMatch?.status ?? item.status) === "sold_out";
-              const isPreorder = (liveDbMatch?.status ?? item.status) === "preorder";
-
-              return (
-              <div
-                key={item.slug}
-                className={`group relative flex flex-col bg-card/40 border transition-all duration-300 ${
-                  index === 0
-                    ? "border-foreground/35 shadow-lg"
-                    : "border-border hover:border-foreground/40 hover:shadow-md"
-                }`}
-              >
-                {/* Product Image Frame */}
-                <Link
-                  to="/product/$slug"
-                  params={{ slug: item.slug }}
-                  className="relative aspect-[4/5] overflow-hidden bg-neutral-900/40 block"
-                >
-                  <img
-                    src={item.image}
-                    alt={item.name}
-                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
-                    loading={index < 3 ? "eager" : "lazy"}
-                  />
-                  {/* Subtle Badge */}
-                  <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-xs text-white/90 px-2 py-0.5 text-[10px] tracking-[0.2em] uppercase border border-white/10">
-                    {item.series}
-                  </div>
-
-                  {isSoldOut && (
-                    <div className="absolute top-3 right-3 bg-destructive/90 text-destructive-foreground px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
-                      Sold Out
-                    </div>
-                  )}
-                  {isPreorder && (
-                    <div className="absolute top-3 right-3 bg-foreground/90 text-background px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
-                      Pre-Order
-                    </div>
-                  )}
-                </Link>
-
-                {/* Product Details Bar */}
-                <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 border-t border-border bg-card/60">
-                  <div>
-                    <Link
-                      to="/product/$slug"
-                      params={{ slug: item.slug }}
-                      className="block font-heading text-xs sm:text-sm uppercase tracking-[0.14em] text-foreground hover:text-muted-foreground transition-colors"
-                    >
-                      {item.name}
-                    </Link>
-                    <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
-                      {formatPrice(getDisplayPrice(item))}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-2">
-                    {isSoldOut ? (
-                      <span className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border text-muted-foreground bg-muted/20 text-center cursor-not-allowed">
-                        Sold Out
-                      </span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleOpenQuickView(item)}
-                        className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border hover:border-foreground hover:bg-foreground hover:text-background transition-all text-center"
-                      >
-                        Pilih Opsi
-                      </button>
-                    )}
-                    <Link
-                      to="/product/$slug"
-                      params={{ slug: item.slug }}
-                      className="p-2 border border-border hover:border-foreground text-muted-foreground hover:text-foreground transition-colors"
-                      title="Lihat Detail"
-                      aria-label={`Detail ${item.name}`}
-                    >
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </Link>
-                  </div>
+          <div className="space-y-14 sm:space-y-20">
+            {/* 1. READY STOCK (PRIORITAS 1) */}
+            {readyStockItems.length > 0 && (
+              <div>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-foreground">
+                    Ready Stock
+                  </span>
+                  <div className="flex-1 h-px bg-border/70" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                  {readyStockItems.map((item, index) => renderSignatureCard(item, index))}
                 </div>
               </div>
-            );
-            })}
+            )}
+
+            {/* 2. COMING SOON (PRIORITAS 2) */}
+            {comingSoonItems.length > 0 && (
+              <div className={readyStockItems.length > 0 ? "pt-12 sm:pt-16 border-t border-border" : ""}>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-sky-400">
+                    Coming Soon
+                  </span>
+                  <div className="flex-1 h-px bg-border/70" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                  {comingSoonItems.map((item, index) => renderSignatureCard(item, index))}
+                </div>
+              </div>
+            )}
+
+            {/* 3. PRE-ORDER (PRIORITAS 3) */}
+            {preOrderItems.length > 0 && (
+              <div className={(readyStockItems.length > 0 || comingSoonItems.length > 0) ? "pt-12 sm:pt-16 border-t border-border" : ""}>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-amber-400">
+                    Pre-Order
+                  </span>
+                  <div className="flex-1 h-px bg-border/70" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                  {preOrderItems.map((item, index) => renderSignatureCard(item, index))}
+                </div>
+              </div>
+            )}
+
+            {/* 4. SOLD OUT (PRIORITAS 4) */}
+            {soldOutItems.length > 0 && (
+              <div className={(readyStockItems.length > 0 || comingSoonItems.length > 0 || preOrderItems.length > 0) ? "pt-12 sm:pt-16 border-t border-border" : ""}>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-muted-foreground">
+                    Sold Out
+                  </span>
+                  <div className="flex-1 h-px bg-border/70" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                  {soldOutItems.map((item, index) => renderSignatureCard(item, index))}
+                </div>
+              </div>
+            )}
+
+            {/* Fallback jika ada status lain diluar 4 diatas */}
+            {otherItems.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                {otherItems.map((item, index) => renderSignatureCard(item, index))}
+              </div>
+            )}
           </div>
         </section>
 

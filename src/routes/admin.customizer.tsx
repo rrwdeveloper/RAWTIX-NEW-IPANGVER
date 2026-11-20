@@ -3,7 +3,7 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { getSiteSettings, updateSiteSettings } from "@/utils/admin.functions";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { Crown, Sparkles, Image as ImageIcon, Save, RotateCcw, AlertTriangle, Eye, Check, Sliders, UploadCloud } from "lucide-react";
+import { Crown, Sparkles, Image as ImageIcon, Save, AlertTriangle, Eye, Check, Sliders, UploadCloud } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin/customizer")({
@@ -34,6 +34,7 @@ function AdminCustomizerPage() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState(DEFAULT_HERO);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -41,6 +42,8 @@ function AdminCustomizerPage() {
   const { data: initialSettings, isLoading } = useQuery({
     queryKey: ["admin_site_settings_hero"],
     queryFn: () => getSiteSettings({ data: { key: "homepage_hero" } }),
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {
@@ -54,6 +57,7 @@ function AdminCustomizerPage() {
         background_image: s.background_image || "",
         overlay_opacity: s.overlay_opacity ?? DEFAULT_HERO.overlay_opacity,
       });
+      setIsInitialized(true);
     }
   }, [initialSettings]);
 
@@ -67,12 +71,12 @@ function AdminCustomizerPage() {
         },
       }),
     onSuccess: () => {
+      // Optimistically update caches immediately
+      queryClient.setQueryData(["admin_site_settings_hero"], form);
+      queryClient.setQueryData(["homepage_hero_settings"], form);
       queryClient.invalidateQueries({ queryKey: ["admin_site_settings_hero"] });
       queryClient.invalidateQueries({ queryKey: ["homepage_hero_settings"] });
       queryClient.invalidateQueries({ queryKey: ["admin-user-logs"] });
-      // Optimistically update homepage hero cache immediately
-      queryClient.setQueryData(["homepage_hero_settings"], form);
-      queryClient.setQueryData(["admin_site_settings_hero"], form);
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 4000);
     },
@@ -159,12 +163,6 @@ function AdminCustomizerPage() {
     }
   };
 
-  const handleReset = () => {
-    if (confirm("Reset layout & background hero kembali ke pengaturan bawaan RAWTIX?")) {
-      setForm(DEFAULT_HERO);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     saveMutation.mutate(form);
@@ -193,7 +191,7 @@ function AdminCustomizerPage() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || (!isInitialized && initialSettings === undefined)) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
         <div className="text-xs tracking-widest uppercase text-zinc-400 animate-pulse">Memuat kustomizer...</div>
@@ -375,20 +373,11 @@ function AdminCustomizerPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between pt-4 border-t border-zinc-800">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs text-zinc-400 hover:text-white transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reset Bawaan
-            </button>
-
+          <div className="flex items-center justify-end pt-4 border-t border-zinc-800">
             <button
               type="submit"
               disabled={saveMutation.isPending}
-              className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold tracking-wider uppercase bg-amber-400 hover:bg-amber-300 text-black rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold tracking-wider uppercase bg-amber-400 hover:bg-amber-300 text-black rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50"
             >
               <Save className="w-3.5 h-3.5 stroke-[2.5]" />
               {saveMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}

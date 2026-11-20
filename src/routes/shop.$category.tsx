@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { QuickViewModal } from "@/components/product/QuickViewModal";
+import { ProductStatusBadge } from "@/components/product/ProductStatusBadge";
 import { READY_STOCK_CATALOGUE } from "@/lib/catalogue";
 import { formatPrice } from "@/lib/utils";
 import type { Database } from "@/integrations/supabase/types";
@@ -172,14 +173,14 @@ function CategoryPage() {
         </div>
 
         {isLoading && displayProducts.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="aspect-[4/5] bg-card animate-pulse border border-border" />
             ))}
           </div>
         ) : displayProducts.length > 0 ? (
-          /* 3-Column Product Grid to perfectly match Home Signature Pieces */
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 lg:gap-10">
+          /* 2-Column Mobile, 3-Column Desktop Product Grid */
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
             {displayProducts.map((product, index) => {
               const primaryImage =
                 product.product_images?.find((img) => img.is_primary) ??
@@ -188,17 +189,17 @@ function CategoryPage() {
               const imageUrl = primaryImage?.url ?? fallbackImage ?? "";
 
               const isSoldOut = product.status === "sold_out";
+              const isComingSoon = product.status === "coming_soon";
               const isPreorder = product.status === "preorder";
-              const series = product.name.split(" ")[0] || "Signature";
 
               return (
                 <div
                   key={product.id}
                   className={`group relative flex flex-col bg-card/40 border transition-all duration-300 ${
-                    index === 0
+                    index === 0 && !isSoldOut
                       ? "border-foreground/35 shadow-lg"
                       : "border-border hover:border-foreground/40 hover:shadow-md"
-                  }`}
+                  } ${isSoldOut ? "opacity-75 hover:opacity-100" : ""}`}
                 >
                   {/* Product Image Frame */}
                   <Link
@@ -210,7 +211,9 @@ function CategoryPage() {
                       <img
                         src={imageUrl}
                         alt={primaryImage?.alt_text ?? product.name}
-                        className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                        className={`w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04] ${
+                          isSoldOut ? "grayscale-[35%]" : ""
+                        }`}
                         loading={index < 3 ? "eager" : "lazy"}
                       />
                     ) : (
@@ -219,30 +222,16 @@ function CategoryPage() {
                       </div>
                     )}
 
-                    {/* Subtle Badge */}
-                    <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-xs text-white/90 px-2 py-0.5 text-[10px] tracking-[0.2em] uppercase border border-white/10">
-                      {series}
-                    </div>
-
-                    {isSoldOut && (
-                      <div className="absolute top-3 right-3 bg-destructive/90 text-destructive-foreground px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
-                        Sold Out
-                      </div>
-                    )}
-                    {isPreorder && (
-                      <div className="absolute top-3 right-3 bg-foreground/90 text-background px-2 py-1 text-[10px] font-heading tracking-[0.2em] uppercase">
-                        Pre-Order
-                      </div>
-                    )}
+                    <ProductStatusBadge status={product.status} />
                   </Link>
 
                   {/* Product Details Bar */}
-                  <div className="p-4 sm:p-5 flex flex-col justify-between flex-1 border-t border-border bg-card/60">
+                  <div className="p-3 sm:p-5 flex flex-col justify-between flex-1 border-t border-border bg-card/60">
                     <div>
                       <Link
                         to="/product/$slug"
                         params={{ slug: product.slug }}
-                        className="block font-heading text-xs sm:text-sm uppercase tracking-[0.14em] text-foreground hover:text-muted-foreground transition-colors"
+                        className="block font-heading text-xs sm:text-sm uppercase tracking-[0.14em] text-foreground hover:text-muted-foreground transition-colors line-clamp-1"
                       >
                         {product.name}
                       </Link>
@@ -251,24 +240,28 @@ function CategoryPage() {
                       </p>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-border/60 flex items-center gap-2">
+                    <div className="mt-3 sm:mt-4 pt-2.5 sm:pt-3 border-t border-border/60 flex items-center gap-1.5 sm:gap-2">
                       {isSoldOut ? (
-                        <span className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border text-muted-foreground bg-muted/20 text-center cursor-not-allowed">
+                        <span className="flex-1 py-1.5 sm:py-2 text-[9px] sm:text-xs uppercase tracking-[0.16em] font-medium border border-border text-muted-foreground bg-muted/20 text-center cursor-not-allowed">
                           Sold Out
+                        </span>
+                      ) : isComingSoon ? (
+                        <span className="flex-1 py-1.5 sm:py-2 text-[9px] sm:text-xs uppercase tracking-[0.16em] font-medium border border-sky-400/20 text-sky-400/80 bg-muted/20 text-center cursor-not-allowed">
+                          Coming Soon
                         </span>
                       ) : (
                         <button
                           type="button"
                           onClick={() => setSelectedProduct(product)}
-                          className="flex-1 py-2 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium border border-border hover:border-foreground hover:bg-foreground hover:text-background transition-all text-center"
+                          className="flex-1 py-1.5 sm:py-2 text-[9px] sm:text-xs uppercase tracking-[0.16em] font-medium border border-border hover:border-foreground hover:bg-foreground hover:text-background transition-all text-center"
                         >
-                          Pilih Opsi
+                          {isPreorder ? "Pre-Order" : "Pilih Opsi"}
                         </button>
                       )}
                       <Link
                         to="/product/$slug"
                         params={{ slug: product.slug }}
-                        className="p-2 border border-border hover:border-foreground text-muted-foreground hover:text-foreground transition-colors"
+                        className="p-1.5 sm:p-2 border border-border hover:border-foreground text-muted-foreground hover:text-foreground transition-colors shrink-0"
                         title="Lihat Detail"
                         aria-label={`Detail ${product.name}`}
                       >

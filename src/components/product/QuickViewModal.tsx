@@ -6,6 +6,7 @@ import { useCart } from "@/hooks/useCart";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { READY_STOCK_CATALOGUE } from "@/lib/catalogue";
+import { ProductStatusBadge } from "./ProductStatusBadge";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
@@ -34,6 +35,7 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
   const variants = product.product_variants ?? [];
   const selectedVariant = variants.find((v) => v.size === selectedSize);
   const isSoldOut = product.status === "sold_out";
+  const isComingSoon = product.status === "coming_soon";
   const isPreorder = product.status === "preorder";
 
   useEffect(() => {
@@ -110,6 +112,7 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
                   No Image
                 </div>
               )}
+              <ProductStatusBadge status={product.status} />
             </div>
 
             {/* Info */}
@@ -140,7 +143,7 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
                   <div className="flex flex-wrap gap-2">
                     {variants.map((v) => {
                       const outOfStock =
-                        v.stock <= 0 && !isPreorder;
+                        (v.stock <= 0 && !isPreorder) || isComingSoon;
                       return (
                         <button
                           key={v.id}
@@ -165,7 +168,7 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
                 </div>
 
                 {/* Quantity */}
-                {!isSoldOut && (
+                {!isSoldOut && !isComingSoon && (
                   <div className="mt-6">
                     <p className="text-xs tracking-[0.2em] uppercase mb-3">
                       Jumlah
@@ -209,6 +212,13 @@ export function QuickViewModal({ product, onClose }: QuickViewModalProps) {
                     className="w-full py-3 text-xs tracking-[0.2em] uppercase bg-muted text-muted-foreground cursor-not-allowed"
                   >
                     Sold Out
+                  </button>
+                ) : isComingSoon ? (
+                  <button
+                    disabled
+                    className="w-full py-3 text-xs tracking-[0.2em] uppercase bg-muted text-sky-400/80 cursor-not-allowed border border-sky-400/20"
+                  >
+                    Coming Soon
                   </button>
                 ) : (
                   <button

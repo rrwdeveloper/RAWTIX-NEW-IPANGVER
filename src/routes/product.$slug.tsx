@@ -10,6 +10,7 @@ import { useCart } from "@/hooks/useCart";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { READY_STOCK_CATALOGUE } from "@/lib/catalogue";
+import { ProductStatusBadge } from "@/components/product/ProductStatusBadge";
 
 type Product = Database["public"]["Tables"]["products"]["Row"];
 type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
@@ -154,6 +155,7 @@ function ProductDetailPage() {
   const variants = product.product_variants ?? [];
   const selectedVariant = variants.find((v) => v.size === selectedSize);
   const isSoldOut = product.status === "sold_out";
+  const isComingSoon = product.status === "coming_soon";
   const isPreorder = product.status === "preorder";
 
   const handleAddToCart = () => {
@@ -225,6 +227,7 @@ function ProductDetailPage() {
                   No Image
                 </div>
               )}
+              <ProductStatusBadge status={product.status} />
             </div>
             {sortedImages.length > 1 && (
               <div className="flex gap-2 overflow-x-auto pb-1">
@@ -279,7 +282,7 @@ function ProductDetailPage() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {variants.map((v) => {
-                    const outOfStock = (v.stock <= 0 && !isPreorder) || isSoldOut;
+                    const outOfStock = (v.stock <= 0 && !isPreorder) || isSoldOut || isComingSoon;
                     return (
                       <button
                         key={v.id}
@@ -301,8 +304,8 @@ function ProductDetailPage() {
               )}
             </div>
 
-            {/* Quantity — only shown after DB resolves and product is not sold out */}
-            {!isLoading && !isSoldOut && (
+            {/* Quantity — only shown after DB resolves and product is not sold out or coming soon */}
+            {!isLoading && !isSoldOut && !isComingSoon && (
               <div className="mt-6">
                 <p className="text-xs tracking-[0.2em] uppercase mb-3">Jumlah</p>
                 <div className="flex items-center border border-border w-fit">
@@ -341,6 +344,13 @@ function ProductDetailPage() {
                   className="w-full py-3 text-xs tracking-[0.2em] uppercase bg-muted text-muted-foreground cursor-not-allowed"
                 >
                   Sold Out
+                </button>
+              ) : isComingSoon ? (
+                <button
+                  disabled
+                  className="w-full py-3 text-xs tracking-[0.2em] uppercase bg-muted text-sky-400/80 cursor-not-allowed border border-sky-400/20"
+                >
+                  Coming Soon
                 </button>
               ) : (
                 <button
