@@ -14,7 +14,7 @@ function AdminProductsPage() {
   const { token, role } = useAdminAuth();
   const queryClient = useQueryClient();
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "preorder" | "draft" | "sold_out">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "preorder" | "draft" | "coming_soon" | "sold_out">("all");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-products"],
@@ -64,7 +64,7 @@ function AdminProductsPage() {
           ["active", "Ready Stock"],
           ["preorder", "Pre-order"],
           ["sold_out", "Sold Out"],
-          ["draft", "Coming Soon"],
+          ["coming_soon", "Coming Soon"],
         ] as const).map(([value, label]) => (
           <button
             key={value}

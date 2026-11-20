@@ -173,9 +173,6 @@ export function Header() {
 
               <nav className="mt-8 space-y-6">
                 <div>
-                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">
-                    Koleksi &amp; Belanja
-                  </p>
                   <ul className="space-y-3 font-heading text-sm uppercase tracking-[0.18em]">
                     <li>
                       <a
@@ -192,16 +189,7 @@ export function Header() {
                         onClick={() => setMenuOpen(false)}
                         className="block text-foreground hover:text-muted-foreground transition-colors"
                       >
-                        Ready Stock (All)
-                      </Link>
-                    </li>
-                    <li>
-                      <Link
-                        to="/pre-order"
-                        onClick={() => setMenuOpen(false)}
-                        className="block text-foreground hover:text-muted-foreground transition-colors"
-                      >
-                        Pre-Order Catalog
+                        Catalogue
                       </Link>
                     </li>
                   </ul>

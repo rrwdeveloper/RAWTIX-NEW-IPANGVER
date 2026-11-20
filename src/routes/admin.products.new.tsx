@@ -85,7 +85,7 @@ function AdminNewProductPage() {
                 description: "",
                 price: 0,
                 categoryId: signatureCategory.id,
-                status: "draft",
+                status: "coming_soon",
                 preorderEstimatedDate: "",
                 featured: false,
                 sortOrder: 0,

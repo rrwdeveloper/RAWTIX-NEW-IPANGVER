@@ -89,16 +89,6 @@ function CategoryPage() {
     queryKey: ["products", "category", category],
     queryFn: async () => {
       if (!categoryData) {
-        // If this is signature-pieces and categoryData is not found, fetch all non-draft products
-        if (isSignatureCategory) {
-          const { data, error } = await supabase
-            .from("products")
-            .select("*, product_images(*), product_variants(*)")
-            .neq("status", "draft")
-            .order("sort_order");
-          if (error) return [];
-          return data as ProductWithRelations[];
-        }
         return [];
       }
       const { data, error } = await supabase
@@ -116,44 +106,7 @@ function CategoryPage() {
     refetchOnWindowFocus: true,
   });
 
-  // If DB products empty for signature pieces, synthesize catalogue fallback
-  const displayProducts: ProductWithRelations[] =
-    products && products.length > 0
-      ? products
-      : isSignatureCategory
-      ? READY_STOCK_CATALOGUE.map((c) => ({
-          id: c.productId,
-          name: c.name,
-          slug: c.slug,
-          price: c.price,
-          description: c.description,
-          status: "active" as const,
-          sort_order: 1,
-          category_id: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          featured: false,
-          preorder_estimated_date: null,
-          product_images: [
-            {
-              id: `img-${c.slug}`,
-              product_id: c.productId,
-              url: c.image,
-              alt_text: c.name,
-              is_primary: true,
-              sort_order: 0,
-              created_at: new Date().toISOString(),
-            },
-          ],
-          product_variants: [
-            { id: `${c.slug}-s`, product_id: c.productId, size: "S", stock: 8, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-m`, product_id: c.productId, size: "M", stock: 8, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-l`, product_id: c.productId, size: "L", stock: 6, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-xl`, product_id: c.productId, size: "XL", stock: 5, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-xxl`, product_id: c.productId, size: "XXL", stock: 3, sku: null, created_at: new Date().toISOString() },
-          ],
-        }))
-      : [];
+  const displayProducts: ProductWithRelations[] = products ?? [];
 
   const titleName = categoryData?.name ?? (isSignatureCategory ? "Signature Pieces" : category);
 

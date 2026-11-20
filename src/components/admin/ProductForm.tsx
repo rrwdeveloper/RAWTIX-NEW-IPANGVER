@@ -16,7 +16,7 @@ export interface ProductFormData {
   description: string;
   price: number;
   categoryId: string;
-  status: "active" | "sold_out" | "preorder" | "draft";
+  status: "active" | "sold_out" | "preorder" | "draft" | "coming_soon";
   preorderEstimatedDate: string;
   featured: boolean;
   sortOrder: number;
@@ -48,7 +48,7 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
       description: "",
       price: 0,
       categoryId: "",
-      status: "draft",
+      status: "coming_soon",
       preorderEstimatedDate: "",
       featured: false,
       sortOrder: 0,
@@ -340,7 +340,7 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
             ["active", "Ready Stock"],
             ["preorder", "Pre-order"],
             ["sold_out", "Sold Out"],
-            ["draft", "Coming Soon"],
+            ["coming_soon", "Coming Soon"],
           ] as const).map(([value, label]) => (
             <button
               key={value}
@@ -358,7 +358,7 @@ export function ProductForm({ initialData, categories, onSubmit, isSubmitting, e
           ))}
         </div>
         <p className="mt-1.5 text-[10px] text-muted-foreground">
-          Ready Stock tampil di katalog utama. Pre-order tampil di katalog pre-order. Coming Soon untuk produk yang akan datang.
+          Produk tampil otomatis di Catalogue sesuai statusnya. Produk berstatus Coming Soon tidak tampil di Signature Pieces kecuali kategori dipilih sebagai Signature Pieces.
         </p>
       </Field>
 

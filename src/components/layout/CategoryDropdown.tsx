@@ -39,16 +39,7 @@ export function CategoryDropdown({ id, open, onClose }: CategoryDropdownProps) {
                 onClick={onClose}
                 className="font-heading text-sm tracking-[0.25em] uppercase text-foreground hover:text-muted-foreground transition-colors"
               >
-                Ready stock
-              </Link>
-            </li>
-            <li>
-              <Link
-                to="/pre-order"
-                onClick={onClose}
-                className="font-heading text-sm tracking-[0.25em] uppercase text-foreground hover:text-muted-foreground transition-colors"
-              >
-                Pre-order
+                Catalogue
               </Link>
             </li>
           </ul>

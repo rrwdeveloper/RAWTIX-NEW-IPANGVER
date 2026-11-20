@@ -507,7 +507,7 @@ export type Database = {
         | "shipped"
         | "delivered"
         | "cancelled"
-      product_status: "active" | "sold_out" | "preorder" | "draft"
+      product_status: "active" | "sold_out" | "preorder" | "draft" | "coming_soon"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -644,7 +644,7 @@ export const Constants = {
         "delivered",
         "cancelled",
       ],
-      product_status: ["active", "sold_out", "preorder", "draft"],
+      product_status: ["active", "sold_out", "preorder", "draft", "coming_soon"],
     },
   },
 } as const

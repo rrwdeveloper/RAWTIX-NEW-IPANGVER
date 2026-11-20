@@ -70,45 +70,11 @@ function ShopPage() {
     refetchOnWindowFocus: true,
   });
 
-  // Use database products dynamically if present, fallback to READY_STOCK_CATALOGUE
-  const displayProducts: ProductWithRelations[] =
-    dbProducts && dbProducts.length > 0
-      ? dbProducts
-      : READY_STOCK_CATALOGUE.map((c) => ({
-          id: c.productId,
-          name: c.name,
-          slug: c.slug,
-          price: c.price,
-          description: c.description,
-          status: "active" as const,
-          sort_order: 1,
-          category_id: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          featured: false,
-          preorder_estimated_date: null,
-          product_images: [
-            {
-              id: `img-${c.slug}`,
-              product_id: c.productId,
-              url: c.image,
-              alt_text: c.name,
-              is_primary: true,
-              sort_order: 0,
-              created_at: new Date().toISOString(),
-            },
-          ],
-          product_variants: [
-            { id: `${c.slug}-s`, product_id: c.productId, size: "S", stock: 8, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-m`, product_id: c.productId, size: "M", stock: 8, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-l`, product_id: c.productId, size: "L", stock: 6, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-xl`, product_id: c.productId, size: "XL", stock: 5, sku: null, created_at: new Date().toISOString() },
-            { id: `${c.slug}-xxl`, product_id: c.productId, size: "XXL", stock: 3, sku: null, created_at: new Date().toISOString() },
-          ],
-        }));
+  const displayProducts: ProductWithRelations[] = dbProducts ?? [];
 
-  // Separate into available ready products and sold out products
-  const availableProducts = displayProducts.filter((p) => p.status !== "sold_out");
+  const readyStockProducts = displayProducts.filter((p) => p.status === "active");
+  const comingSoonProducts = displayProducts.filter((p) => p.status === "coming_soon" || p.status === "draft");
+  const preOrderProducts = displayProducts.filter((p) => p.status === "preorder");
   const soldOutProducts = displayProducts.filter((p) => p.status === "sold_out");
 
   const renderProductCard = (product: ProductWithRelations, index: number) => {
@@ -119,7 +85,7 @@ function ShopPage() {
     const imageUrl = primaryImage?.url ?? fallbackImage ?? "";
 
     const isSoldOut = product.status === "sold_out";
-    const isComingSoon = product.status === "coming_soon";
+    const isComingSoon = product.status === "coming_soon" || product.status === "draft";
     const isPreorder = product.status === "preorder";
 
     return (
@@ -210,10 +176,10 @@ function ShopPage() {
         {/* Section Header */}
         <div className="text-center mb-14 sm:mb-20">
           <h1 className="font-script text-5xl sm:text-7xl md:text-8xl text-foreground font-normal tracking-wide">
-            Ready Stock
+            Catalogue
           </h1>
           <p className="mt-2 text-xs sm:text-sm font-bold tracking-[0.22em] uppercase text-foreground/90">
-            KOLEKSI RAWTIX YANG SIAP DIKIRIM HARI INI
+            KOLEKSI RAWTIX LENGKAP
           </p>
         </div>
 
@@ -224,39 +190,58 @@ function ShopPage() {
             ))}
           </div>
         ) : displayProducts.length > 0 ? (
-          <div className="space-y-24">
-            {/* 1. SEKSI PRODUK TERSEDIA (READY) */}
-            {availableProducts.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
-                {availableProducts.map((product, index) => renderProductCard(product, index))}
-              </div>
-            ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                Saat ini semua produk ready stock sedang dalam proses restock.
-              </p>
+          <div className="space-y-14 sm:space-y-20">
+            {readyStockProducts.length > 0 && (
+              <section>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-foreground">Ready Stock</span>
+                  <div className="flex-1 h-px bg-border/70" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                  {readyStockProducts.map((product, index) => renderProductCard(product, index))}
+                </div>
+              </section>
             )}
 
-            {/* 2. SEKSI PRODUK HABIS (SOLD OUT / ARCHIVE) */}
-            {soldOutProducts.length > 0 && (
-              <div className="pt-16 border-t border-border">
-                <div className="text-center mb-12 sm:mb-16">
-                  <span className="text-[10px] tracking-[0.3em] uppercase bg-muted/40 text-muted-foreground px-3 py-1 font-medium border border-border">
-                    Archive Collection
-                  </span>
-                  <h2 className="mt-4 font-heading text-xl sm:text-2xl uppercase tracking-[0.16em] text-foreground">
-                    Sold Out Pieces
-                  </h2>
+            {comingSoonProducts.length > 0 && (
+              <section className={readyStockProducts.length > 0 ? "pt-12 sm:pt-16 border-t border-border" : ""}>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-sky-400">Coming Soon</span>
+                  <div className="flex-1 h-px bg-border/70" />
                 </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                  {comingSoonProducts.map((product, index) => renderProductCard(product, index))}
+                </div>
+              </section>
+            )}
 
+            {preOrderProducts.length > 0 && (
+              <section className={(readyStockProducts.length > 0 || comingSoonProducts.length > 0) ? "pt-12 sm:pt-16 border-t border-border" : ""}>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-amber-400">Pre-Order</span>
+                  <div className="flex-1 h-px bg-border/70" />
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
+                  {preOrderProducts.map((product, index) => renderProductCard(product, index))}
+                </div>
+              </section>
+            )}
+
+            {soldOutProducts.length > 0 && (
+              <section className={(readyStockProducts.length > 0 || comingSoonProducts.length > 0 || preOrderProducts.length > 0) ? "pt-12 sm:pt-16 border-t border-border" : ""}>
+                <div className="flex items-center gap-3 mb-6 sm:mb-8">
+                  <span className="text-[10px] sm:text-xs font-semibold tracking-[0.24em] uppercase text-muted-foreground">Sold Out</span>
+                  <div className="flex-1 h-px bg-border/70" />
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 md:gap-8 lg:gap-10">
                   {soldOutProducts.map((product, index) => renderProductCard(product, index))}
                 </div>
-              </div>
+              </section>
             )}
           </div>
         ) : (
           <p className="py-20 text-center text-sm text-muted-foreground">
-            Belum ada produk ready stock.
+            Belum ada produk dalam katalog.
           </p>
         )}
       </main>

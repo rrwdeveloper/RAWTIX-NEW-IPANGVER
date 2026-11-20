@@ -156,18 +156,13 @@ function HomePage() {
 
   const signatureItems = hasDbProducts && dbProducts
     ? (() => {
-        // Try category-aware grouping first
-        const byCat = dbProducts.filter(
-          (p) => (p as typeof p & { categories?: { slug?: string } | null }).categories?.slug === "signature-pieces"
-        );
-        // If no products are explicitly assigned to signature-pieces, fall back to all DB products
-        return (byCat.length > 0 ? byCat : dbProducts).map(mapDbProduct);
+        return dbProducts
+          .filter(
+            (p) => (p as typeof p & { categories?: { slug?: string } | null }).categories?.slug === "signature-pieces"
+          )
+          .map(mapDbProduct);
       })()
-    : READY_STOCK_CATALOGUE.slice(0, 6).map((c) => ({
-        ...c,
-        status: "active",
-        rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
-      }));
+    : [];
 
   // Helper: get price from live DB if available, fallback to catalogue
   const getDisplayPrice = (item: { slug: string; price: number }): number => {
@@ -224,17 +219,17 @@ function HomePage() {
   };
 
   const readyStockItems = signatureItems.filter((i) => getProductStatus(i) === "active");
-  const comingSoonItems = signatureItems.filter((i) => getProductStatus(i) === "coming_soon");
+  const comingSoonItems = signatureItems.filter((i) => ["coming_soon", "draft"].includes(getProductStatus(i)));
   const preOrderItems = signatureItems.filter((i) => getProductStatus(i) === "preorder");
   const soldOutItems = signatureItems.filter((i) => getProductStatus(i) === "sold_out");
   const otherItems = signatureItems.filter(
-    (i) => !["active", "coming_soon", "preorder", "sold_out"].includes(getProductStatus(i))
+    (i) => !["active", "coming_soon", "draft", "preorder", "sold_out"].includes(getProductStatus(i))
   );
 
   const renderSignatureCard = (item: (typeof signatureItems)[0], index: number) => {
     const status = getProductStatus(item);
     const isSoldOut = status === "sold_out";
-    const isComingSoon = status === "coming_soon";
+    const isComingSoon = status === "coming_soon" || status === "draft";
     const isPreorder = status === "preorder";
 
     return (
