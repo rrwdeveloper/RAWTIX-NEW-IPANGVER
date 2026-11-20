@@ -8,8 +8,6 @@ import { QuickViewModal } from "@/components/product/QuickViewModal";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
-import { READY_STOCK_CATALOGUE } from "@/lib/catalogue";
-
 type Product = Database["public"]["Tables"]["products"]["Row"];
 type ProductImage = Database["public"]["Tables"]["product_images"]["Row"];
 type ProductVariant = Database["public"]["Tables"]["product_variants"]["Row"];
@@ -19,45 +17,33 @@ type ProductWithRelations = Product & {
   categories?: { slug: string } | null;
 };
 
-// Fallback items converted into ProductWithRelations shape
-const CATALOGUE_FALLBACK_PRODUCTS: ProductWithRelations[] = READY_STOCK_CATALOGUE.map((item, idx) => ({
-  id: item.productId,
-  name: item.name,
-  slug: item.slug,
-  price: item.price,
-  description: item.description,
-  status: "active",
-  sort_order: idx + 1,
-  featured: false,
-  category_id: null,
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-  preorder_estimated_date: null,
-  product_images: [
-    {
-      id: `img-${item.slug}`,
-      product_id: item.productId,
-      url: item.image,
-      alt_text: item.name,
-      is_primary: true,
-      sort_order: 0,
-      created_at: new Date().toISOString(),
-    },
-  ],
-  product_variants: [
-    { id: `${item.slug}-s`, product_id: item.productId, size: "S", stock: 8, sku: null },
-    { id: `${item.slug}-m`, product_id: item.productId, size: "M", stock: 8, sku: null },
-    { id: `${item.slug}-l`, product_id: item.productId, size: "L", stock: 6, sku: null },
-    { id: `${item.slug}-xl`, product_id: item.productId, size: "XL", stock: 5, sku: null },
-    { id: `${item.slug}-xxl`, product_id: item.productId, size: "XXL", stock: 3, sku: null },
-  ],
-}));
-
 export const Route = createFileRoute("/shop")({
+  loader: async () => {
+    // SSR: pre-fetch all active products so the page renders with real data
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const url = import.meta.env.VITE_SUPABASE_URL as string;
+      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      if (!url || !key) return { products: null };
+      const serverClient = createClient(url, key, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data, error } = await serverClient
+        .from("products")
+        .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
+        .neq("status", "draft")
+        .order("sort_order");
+      if (error) return { products: null };
+      return { products: data as ProductWithRelations[] };
+    } catch {
+      return { products: null };
+    }
+  },
   component: ShopPage,
 });
 
 function ShopPage() {
+  const loaderData = Route.useLoaderData();
   const [selectedProduct, setSelectedProduct] = useState<ProductWithRelations | null>(null);
   const { data: dbProducts, isLoading } = useQuery({
     queryKey: ["products", "ready-stock"],
@@ -65,7 +51,7 @@ function ShopPage() {
       try {
         const { data, error } = await supabase
           .from("products")
-          .select("*, product_images(*), product_variants(*)")
+          .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
           .neq("status", "draft")
           .order("sort_order");
         if (error) return null;
@@ -74,15 +60,15 @@ function ShopPage() {
         return null;
       }
     },
+    // Seed from SSR loader so first paint is instant
+    initialData: loaderData?.products ?? undefined,
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
 
-  // Use database products if available and non-empty, otherwise use full ready stock catalogue
-  const displayProducts = (dbProducts && dbProducts.length > 0)
-    ? dbProducts
-    : CATALOGUE_FALLBACK_PRODUCTS;
+  // Use database products only — no static fallback hiding new DB products
+  const displayProducts = dbProducts && dbProducts.length > 0 ? dbProducts : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground">

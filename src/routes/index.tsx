@@ -61,13 +61,13 @@ function HomePage() {
     refetchOnWindowFocus: true,
   });
 
-  // Fetch live products if available
+  // Fetch live products WITH categories relation
   const { data: dbProducts } = useQuery({
     queryKey: ["homepage-products"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("products")
-        .select("*, product_images(*), product_variants(*)")
+        .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
         .neq("status", "draft")
         .order("sort_order");
       if (error) return null;
@@ -91,36 +91,43 @@ function HomePage() {
     return catalogueMatch?.image || "";
   };
 
-  // Group items according to Saint P layout references:
-  // 1. Signature Pieces: first 6 products (from DB if available, else static)
+  // Group items by category slug from DB (dynamic — follows CMS changes)
+  // "Signature Pieces" = products whose category slug = "signature-pieces"
+  // "Daily Staples"    = products whose category slug = "daily-staples"
+  // If DB has no categories assigned, fall back to position slices for backwards compat
+  const mapDbProduct = (p: NonNullable<typeof dbProducts>[0]) => ({
+    productId: p.id,
+    name: p.name,
+    slug: p.slug,
+    series: (p.name.split(" ")[0] || "Signature"),
+    price: p.price,
+    description: p.description || "",
+    image: getProductImage(p, p),
+    rawProduct: p,
+  });
+
   const signatureItems = hasDbProducts && dbProducts
-    ? dbProducts.slice(0, 6).map((p) => ({
-        productId: p.id,
-        name: p.name,
-        slug: p.slug,
-        series: (p.name.split(" ")[0] || "Signature"),
-        price: p.price,
-        description: p.description || "",
-        image: getProductImage(p, p),
-        rawProduct: p,
-      }))
+    ? (() => {
+        // Try category-aware grouping first
+        const byCat = dbProducts.filter(
+          (p) => (p as typeof p & { categories?: { slug?: string } | null }).categories?.slug === "signature-pieces"
+        );
+        // If no products are explicitly assigned to signature-pieces, fall back to all DB products
+        return (byCat.length > 0 ? byCat : dbProducts).map(mapDbProduct);
+      })()
     : READY_STOCK_CATALOGUE.slice(0, 6).map((c) => ({
         ...c,
         rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
       }));
 
-  // 2. Daily Staples: next products (index 6 to 9)
   const dailyStaplesItems = hasDbProducts && dbProducts
-    ? dbProducts.slice(6, 9).map((p) => ({
-        productId: p.id,
-        name: p.name,
-        slug: p.slug,
-        series: (p.name.split(" ")[0] || "Staples"),
-        price: p.price,
-        description: p.description || "",
-        image: getProductImage(p, p),
-        rawProduct: p,
-      }))
+    ? (() => {
+        const byCat = dbProducts.filter(
+          (p) => (p as typeof p & { categories?: { slug?: string } | null }).categories?.slug === "daily-staples"
+        );
+        // Only show Daily Staples section if products explicitly categorised as such
+        return byCat.map(mapDbProduct);
+      })()
     : READY_STOCK_CATALOGUE.slice(6, 9).map((c) => ({
         ...c,
         rawProduct: undefined as typeof dbProducts extends (infer T)[] ? T : undefined,
@@ -300,8 +307,9 @@ function HomePage() {
         </section>
 
         {/* ============================================================== */}
-        {/* SECTION 2: DAILY STAPLES (Foto 3 & 4: Saint P reference)       */}
+        {/* SECTION 2: DAILY STAPLES — only shown when category exists in DB */}
         {/* ============================================================== */}
+        {dailyStaplesItems.length > 0 && (
         <section id="daily-staples" className="px-4 sm:px-8 md:px-14 py-20 sm:py-28 max-w-7xl mx-auto border-t border-border">
           {/* Section Header with Spencerian Cursive Title */}
           <div className="text-center mb-14 sm:mb-20">
@@ -375,6 +383,7 @@ function HomePage() {
             ))}
           </div>
         </section>
+        )}
 
         {/* ============================================================== */}
         {/* SECTION 3: THE ATELIER & COMPANY PROFILE CORE                  */}

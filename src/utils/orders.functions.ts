@@ -117,6 +117,34 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const orderResult = result as GuestOrderResult | null;
 
+    // --- Decrement stock for each ordered variant ---
+    // Uses service client so RLS doesn't block the update
+    const service = getServiceClient();
+    if (service && orderResult?.id) {
+      try {
+        for (const item of data.items) {
+          if (!item.variantId) continue;
+          const uuidOk = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.variantId);
+          if (!uuidOk) continue;
+          // Read current stock, then write new value (avoids negative)
+          const { data: variant } = await service
+            .from("product_variants")
+            .select("stock")
+            .eq("id", item.variantId)
+            .single();
+          if (variant) {
+            await service
+              .from("product_variants")
+              .update({ stock: Math.max(0, variant.stock - item.quantity) })
+              .eq("id", item.variantId);
+          }
+        }
+      } catch (stockErr) {
+        // Non-fatal: order already created, log but don't throw
+        console.error("[stock] Decrement failed:", stockErr);
+      }
+    }
+
     // --- Request DOKU Checkout Payment URL (Primary) ---
     let redirectUrl = null;
     const dokuClientId = process.env.DOKU_CLIENT_ID;
