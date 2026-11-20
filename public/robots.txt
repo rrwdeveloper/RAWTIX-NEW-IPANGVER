@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Private & transaction routes
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /orders
+Disallow: /order-success
+
+Sitemap: https://rawtix.id/sitemap.xml
