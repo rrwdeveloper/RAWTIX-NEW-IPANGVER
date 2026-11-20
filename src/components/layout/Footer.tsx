@@ -60,7 +60,7 @@ export function Footer() {
             </p>
             <div className="pt-2 flex items-center gap-6 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Truck className="w-3.5 h-3.5 text-foreground" /> Kirim Seluruh Indonesia
+                <Truck className="w-3.5 h-3.5 text-foreground" /> worldwide shipping
               </span>
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-foreground" /> Garansi Kualitas
@@ -124,7 +124,7 @@ export function Footer() {
                 <span>@rawtix.id</span>
               </a>
               <a
-                href="mailto:rawtix.official@gmail.com"
+                href="mailto:yokepongkytr@gmail.com"
                 className="flex items-center gap-2.5 hover:text-foreground transition-colors"
               >
                 <span className="w-4 text-center font-serif text-sm">@</span>
