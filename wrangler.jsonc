@@ -5,7 +5,7 @@
   "compatibility_flags": ["nodejs_compat"],
   "main": "@tanstack/react-start/server-entry",
   "vars": {
-    "APP_URL": "https://rawtix.rrw-dev.workers.dev",
+    "APP_URL": "https://rawtix.id",
     "DOKU_CLIENT_ID": "BRN-0229-1794847405864",
     "DOKU_IS_PRODUCTION": "true",
     "KOMERCE_API_KEY": "zZB8GVM93ab23fcdb95c07e8V66uYqGR",
