@@ -43,33 +43,24 @@ const withHeroCacheKey = (url: string, cacheKey?: string) => {
 export const Route = createFileRoute("/")({
   loader: async () => {
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = (typeof process !== "undefined" ? process.env.SUPABASE_URL : undefined) || (import.meta.env.VITE_SUPABASE_URL as string);
-      const key = (typeof process !== "undefined" ? process.env.SUPABASE_PUBLISHABLE_KEY : undefined) || (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string);
-      if (url && key) {
-        const serverClient = createClient(url, key, {
-          auth: { persistSession: false, autoRefreshToken: false },
-        });
-        const [heroRes, productsRes] = await Promise.all([
-          serverClient
-            .from("site_settings")
-            .select("value, updated_at")
-            .eq("key", "homepage_hero")
-            .maybeSingle(),
-          serverClient
-            .from("products")
-            .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
-            .neq("status", "draft")
-            .order("sort_order"),
-        ]);
-        const heroValue = heroRes.data?.value as Omit<HomepageHero, "_cacheKey"> | null;
-        const hero: HomepageHero | null = heroValue
-          ? { ...heroValue, _cacheKey: heroRes.data?.updated_at || undefined }
-          : null;
-        const products = productsRes.data || null;
-        return { hero, products };
-      }
-      return { hero: null, products: null };
+      const [heroRes, productsRes] = await Promise.all([
+        supabase
+          .from("site_settings")
+          .select("value, updated_at")
+          .eq("key", "homepage_hero")
+          .maybeSingle(),
+        supabase
+          .from("products")
+          .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
+          .neq("status", "draft")
+          .order("sort_order"),
+      ]);
+      const heroValue = heroRes.data?.value as Omit<HomepageHero, "_cacheKey"> | null;
+      const hero: HomepageHero | null = heroValue
+        ? { ...heroValue, _cacheKey: heroRes.data?.updated_at || undefined }
+        : null;
+      const products = productsRes.data || null;
+      return { hero, products };
     } catch {
       return { hero: null, products: null };
     }
@@ -102,9 +93,26 @@ function HomePage() {
   const loaderData = Route.useLoaderData();
   const [quickViewProduct, setQuickViewProduct] = useState<ComponentProps<typeof QuickViewModal>["product"] | null>(null);
 
-  // Hero text and image come only from the SSR route loader. This prevents
-  // React Query cache data from briefly replacing a newly saved hero on refresh.
-  const heroSettings = loaderData?.hero as HomepageHero | null;
+  // Live hero query with initialData from loader to prevent fallback flashes during client-side navigation
+  const { data: heroQueryData } = useQuery({
+    queryKey: ["homepage_hero_settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("site_settings")
+        .select("value, updated_at")
+        .eq("key", "homepage_hero")
+        .maybeSingle();
+      if (error || !data) return null;
+      const val = data.value as Omit<HomepageHero, "_cacheKey">;
+      return { ...val, _cacheKey: data.updated_at || undefined } as HomepageHero;
+    },
+    initialData: (loaderData?.hero as HomepageHero | null) ?? undefined,
+    staleTime: 60 * 1000,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const heroSettings = heroQueryData || (loaderData?.hero as HomepageHero | null);
 
   // Fetch live products WITH categories relation
   const { data: dbProducts } = useQuery({

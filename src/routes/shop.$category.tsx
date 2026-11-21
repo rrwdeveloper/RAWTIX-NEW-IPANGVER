@@ -22,14 +22,7 @@ type ProductWithRelations = Product & {
 export const Route = createFileRoute("/shop/$category")({
   loader: async ({ params }) => {
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = import.meta.env.VITE_SUPABASE_URL as string;
-      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-      if (!url || !key) return { categoryData: null, products: null };
-      const serverClient = createClient(url, key, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-      const { data: cat } = await serverClient
+      const { data: cat } = await supabase
         .from("categories")
         .select("*")
         .eq("slug", params.category)
@@ -37,7 +30,7 @@ export const Route = createFileRoute("/shop/$category")({
 
       const isSig = params.category === "signature-pieces" || params.category === "signature";
 
-      let prodQuery = serverClient
+      let prodQuery = supabase
         .from("products")
         .select("*, product_images(*), product_variants(*)")
         .neq("status", "draft")

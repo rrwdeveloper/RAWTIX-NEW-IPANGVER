@@ -23,14 +23,7 @@ type ProductWithRelations = Product & {
 export const Route = createFileRoute("/product/$slug")({
   loader: async ({ params }) => {
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = import.meta.env.VITE_SUPABASE_URL as string;
-      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-      if (!url || !key) return { product: null };
-      const serverClient = createClient(url, key, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-      const { data, error } = await serverClient
+      const { data, error } = await supabase
         .from("products")
         .select("*, product_images(*), product_variants(*)")
         .eq("slug", params.slug)

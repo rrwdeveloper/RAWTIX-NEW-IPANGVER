@@ -22,16 +22,9 @@ type ProductWithRelations = Product & {
 
 export const Route = createFileRoute("/shop")({
   loader: async () => {
-    // SSR: pre-fetch all active products so the page renders with real data
+    // SSR & Client: pre-fetch all active products so the page renders with real data
     try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const url = import.meta.env.VITE_SUPABASE_URL as string;
-      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-      if (!url || !key) return { products: null };
-      const serverClient = createClient(url, key, {
-        auth: { persistSession: false, autoRefreshToken: false },
-      });
-      const { data, error } = await serverClient
+      const { data, error } = await supabase
         .from("products")
         .select("*, product_images(*), product_variants(*), categories(id, name, slug)")
         .neq("status", "draft")
