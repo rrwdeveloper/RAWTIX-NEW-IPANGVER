@@ -81,6 +81,36 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+    const dokuClientId = process.env.DOKU_CLIENT_ID;
+    if (!dokuClientId) {
+      console.error("[DOKU] DOKU_CLIENT_ID is not configured");
+      throw new Error("Layanan pembayaran sedang tidak tersedia. Silakan coba lagi nanti.");
+    }
+
+    const dokuItems = data.items.map((item) => ({
+      name: item.name.slice(0, 50),
+      price: item.price,
+      quantity: item.quantity,
+    })).concat([{
+      name: `Ongkir - ${(data.shippingMethodName || "Reguler").slice(0, 40)}`,
+      price: shippingCost,
+      quantity: 1,
+    }]);
+
+    const dokuResult = await createDokuCheckoutPayment({
+      orderNumber,
+      amount: total,
+      customerName: data.customerName,
+      email: data.email,
+      phone: data.phone,
+      items: dokuItems,
+    });
+
+    if (!dokuResult.paymentUrl) {
+      console.error("[DOKU] Checkout payment URL was not returned", dokuResult.rawResponse);
+      throw new Error("Pembayaran tidak dapat diproses saat ini. Pesanan belum dibuat; silakan coba lagi atau hubungi WhatsApp RAWTIX.");
+    }
+
     const itemsJsonb = data.items.map((item) => ({
       product_id: uuidRegex.test(item.productId) ? item.productId : null,
       variant_id: uuidRegex.test(item.variantId) ? item.variantId : null,
@@ -145,48 +175,14 @@ export const createOrder = createServerFn({ method: "POST" })
       }
     }
 
-    // --- Request DOKU Checkout Payment URL (Primary) ---
-    let redirectUrl = null;
-    const dokuClientId = process.env.DOKU_CLIENT_ID;
-
-    if (dokuClientId) {
-      try {
-        const dokuItems = data.items.map((item) => ({
-          name: item.name.slice(0, 50),
-          price: item.price,
-          quantity: item.quantity,
-        })).concat([{
-          name: `Ongkir - ${(data.shippingMethodName || "Reguler").slice(0, 40)}`,
-          price: shippingCost,
-          quantity: 1,
-        }]);
-
-        const dokuResult = await createDokuCheckoutPayment({
-          orderNumber,
-          amount: total,
-          customerName: data.customerName,
-          email: data.email,
-          phone: data.phone,
-          items: dokuItems,
-        });
-
-        if (dokuResult.paymentUrl) {
-          redirectUrl = dokuResult.paymentUrl;
-
-          const service = getServiceClient();
-          if (service) {
-            await service
-              .from("orders")
-              .update({
-                payment_reference: dokuResult.paymentUrl,
-                payment_method: "doku",
-              })
-              .eq("order_number", orderNumber);
-          }
-        }
-      } catch (err) {
-        console.error("[DOKU] Checkout generation error:", err);
-      }
+    if (service) {
+      await service
+        .from("orders")
+        .update({
+          payment_reference: dokuResult.paymentUrl,
+          payment_method: "doku",
+        })
+        .eq("order_number", orderNumber);
     }
 
     return {
@@ -194,7 +190,7 @@ export const createOrder = createServerFn({ method: "POST" })
       orderId: orderResult?.id,
       total,
       snapToken: null,
-      redirectUrl,
+      redirectUrl: dokuResult.paymentUrl,
     };
   });
 

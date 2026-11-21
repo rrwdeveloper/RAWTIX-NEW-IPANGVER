@@ -40,6 +40,18 @@ Do not run `supabase db reset` against production. The application also
 expects the `product-images` public Storage bucket and the seeded catalogue
 data to exist.
 
+## Troubleshooting pembayaran internasional DOKU
+
+Jika pembeli dari luar negeri membuka website tetapi transaksi Visa/Mastercard ditolak:
+
+1. Masalah tersebut biasanya terjadi pada konfigurasi merchant/acquirer DOKU, bukan karena website memblokir negara pengguna.
+2. Hubungi DOKU Support melalui kanal resmi dan minta pemeriksaan **international card / cross-border Mastercard dan Visa**, 3DS, serta BIN/country yang belum diizinkan untuk Merchant ID yang digunakan.
+3. Sediakan informasi transaksi: Merchant ID/Client ID, invoice number, waktu transaksi, merek kartu, dan pesan penolakan. Jangan kirim nomor kartu penuh, CVV, atau secret key.
+4. Pastikan variabel produksi berikut benar: `DOKU_CLIENT_ID`, `DOKU_SECRET_KEY`, `DOKU_IS_PRODUCTION=true`, dan `APP_URL`.
+5. Setelah DOKU mengaktifkan akses, lakukan transaksi uji berbiaya rendah dan verifikasi webhook pembayaran serta status pesanan. Redeploy jika ada perubahan environment pada Cloudflare.
+
+Jika DOKU gagal membuat payment URL, aplikasi kini menahan pembuatan pesanan dan pengurangan stok, lalu menampilkan pesan agar pelanggan mencoba lagi atau menghubungi RAWTIX. Pantau error `[DOKU]` pada log server untuk mengetahui kegagalan konfigurasi atau koneksi API.
+
 ## Validation
 
 ```bash
