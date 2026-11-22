@@ -44,6 +44,7 @@ function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const { addItem } = useCart();
+  const router = useRouter();
 
   const { data: dbProduct, isLoading } = useQuery({
     queryKey: ["product", slug],
@@ -175,8 +176,6 @@ function ProductDetailPage() {
     });
     toast.success("Ditambahkan ke keranjang");
   };
-
-  const router = useRouter();
 
   const handleClose = () => {
     if (typeof window !== "undefined" && window.history.length > 1) {
