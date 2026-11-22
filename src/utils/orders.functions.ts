@@ -147,33 +147,8 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const orderResult = result as GuestOrderResult | null;
 
-    // --- Decrement stock for each ordered variant ---
-    // Uses service client so RLS doesn't block the update
-    const service = getServiceClient();
-    if (service && orderResult?.id) {
-      try {
-        for (const item of data.items) {
-          if (!item.variantId) continue;
-          const uuidOk = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(item.variantId);
-          if (!uuidOk) continue;
-          // Read current stock, then write new value (avoids negative)
-          const { data: variant } = await service
-            .from("product_variants")
-            .select("stock")
-            .eq("id", item.variantId)
-            .single();
-          if (variant) {
-            await service
-              .from("product_variants")
-              .update({ stock: Math.max(0, variant.stock - item.quantity) })
-              .eq("id", item.variantId);
-          }
-        }
-      } catch (stockErr) {
-        // Non-fatal: order already created, log but don't throw
-        console.error("[stock] Decrement failed:", stockErr);
-      }
-    }
+    // Stock is decremented only after payment is confirmed. Pending, failed,
+    // expired, cancelled, or abandoned orders must never reduce inventory.
 
     if (service) {
       await service
@@ -337,28 +312,46 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
                   })
                   .eq("order_number", data.orderNumber);
 
-                // Stock management on fallback
-                if (dbStatus === "paid") {
+                if (dbStatus === "paid" && dbOrder?.status === "pending") {
                   const { data: orderItems } = await service
                     .from("order_items")
                     .select("variant_id, quantity")
                     .eq("order_id", orderData.id);
 
-                  if (orderItems) {
-                    for (const item of orderItems) {
-                      if (!item.variant_id) continue;
-                      const { data: variant } = await service
+                  for (const item of orderItems || []) {
+                    if (!item.variant_id) continue;
+                    const { data: variant } = await service
+                      .from("product_variants")
+                      .select("stock")
+                      .eq("id", item.variant_id)
+                      .single();
+                    if (variant) {
+                      await service
                         .from("product_variants")
-                        .select("stock")
-                        .eq("id", item.variant_id)
-                        .single();
+                        .update({ stock: Math.max(0, variant.stock - item.quantity) })
+                        .eq("id", item.variant_id);
+                    }
+                  }
+                }
 
-                      if (variant) {
-                        await service
-                          .from("product_variants")
-                          .update({ stock: Math.max(0, variant.stock - item.quantity) })
-                          .eq("id", item.variant_id);
-                      }
+                if (dbStatus === "cancelled" && ["paid", "processing", "shipped"].includes(dbOrder?.status || "")) {
+                  const { data: orderItems } = await service
+                    .from("order_items")
+                    .select("variant_id, quantity")
+                    .eq("order_id", orderData.id);
+
+                  for (const item of orderItems || []) {
+                    if (!item.variant_id) continue;
+                    const { data: variant } = await service
+                      .from("product_variants")
+                      .select("stock")
+                      .eq("id", item.variant_id)
+                      .single();
+                    if (variant) {
+                      await service
+                        .from("product_variants")
+                        .update({ stock: variant.stock + item.quantity })
+                        .eq("id", item.variant_id);
                     }
                   }
                 }

@@ -158,55 +158,46 @@ export const Route = createFileRoute("/api/doku-notification" as never)({
                 })
                 .eq("id", order.id);
 
-              // Stock auto-decrement when moving to paid from pending
               if (effectiveStatus === "paid" && currentStatus === "pending") {
                 const { data: orderItems } = await client
                   .from("order_items")
                   .select("variant_id, quantity")
                   .eq("order_id", order.id);
 
-                if (orderItems) {
-                  for (const item of orderItems) {
-                    if (!item.variant_id) continue;
-                    const { data: variant } = await client
+                for (const item of orderItems || []) {
+                  if (!item.variant_id) continue;
+                  const { data: variant } = await client
+                    .from("product_variants")
+                    .select("stock")
+                    .eq("id", item.variant_id)
+                    .single();
+                  if (variant) {
+                    await client
                       .from("product_variants")
-                      .select("stock")
-                      .eq("id", item.variant_id)
-                      .single();
-
-                    if (variant) {
-                      const newStock = Math.max(0, variant.stock - item.quantity);
-                      await client
-                        .from("product_variants")
-                        .update({ stock: newStock })
-                        .eq("id", item.variant_id);
-                    }
+                      .update({ stock: Math.max(0, variant.stock - item.quantity) })
+                      .eq("id", item.variant_id);
                   }
                 }
               }
 
-              // Stock restoration when cancelling from paid
-              if (effectiveStatus === "cancelled" && currentStatus === "paid") {
+              if (effectiveStatus === "cancelled" && ["paid", "processing", "shipped"].includes(currentStatus)) {
                 const { data: orderItems } = await client
                   .from("order_items")
                   .select("variant_id, quantity")
                   .eq("order_id", order.id);
 
-                if (orderItems) {
-                  for (const item of orderItems) {
-                    if (!item.variant_id) continue;
-                    const { data: variant } = await client
+                for (const item of orderItems || []) {
+                  if (!item.variant_id) continue;
+                  const { data: variant } = await client
+                    .from("product_variants")
+                    .select("stock")
+                    .eq("id", item.variant_id)
+                    .single();
+                  if (variant) {
+                    await client
                       .from("product_variants")
-                      .select("stock")
-                      .eq("id", item.variant_id)
-                      .single();
-
-                    if (variant) {
-                      await client
-                        .from("product_variants")
-                        .update({ stock: variant.stock + item.quantity })
-                        .eq("id", item.variant_id);
-                    }
+                      .update({ stock: variant.stock + item.quantity })
+                      .eq("id", item.variant_id);
                   }
                 }
               }

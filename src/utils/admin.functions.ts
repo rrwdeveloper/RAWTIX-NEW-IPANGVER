@@ -617,8 +617,8 @@ export const syncPaymentStatusForAdmin = createServerFn({ method: "POST" })
         })
         .eq("id", data.orderId);
 
-      // Decrement stock if transitioning to paid
-      if (targetStatus === "paid" && currentStatus !== "paid") {
+      // Decrement stock only for the unpaid -> paid transition.
+      if (targetStatus === "paid" && currentStatus === "pending") {
         const { data: orderItems } = await client
           .from("order_items")
           .select("variant_id, quantity")
