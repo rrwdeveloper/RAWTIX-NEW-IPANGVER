@@ -150,6 +150,7 @@ export const createOrder = createServerFn({ method: "POST" })
     // Stock is decremented only after payment is confirmed. Pending, failed,
     // expired, cancelled, or abandoned orders must never reduce inventory.
 
+    const service = getServiceClient();
     if (service) {
       await service
         .from("orders")

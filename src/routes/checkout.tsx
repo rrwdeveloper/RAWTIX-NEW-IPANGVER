@@ -468,6 +468,7 @@ function CheckoutPage() {
                   {shippingRates.map((rate) => (
                     <label
                       key={rate.service}
+                      onClick={() => updateField("selectedShipping", rate.service)}
                       className={`flex items-center justify-between border px-4 py-3 cursor-pointer transition-colors ${
                         form.selectedShipping === rate.service
                           ? "border-foreground bg-foreground/5"
