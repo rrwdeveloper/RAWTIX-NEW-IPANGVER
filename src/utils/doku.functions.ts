@@ -84,7 +84,7 @@ export async function createDokuCheckoutPayment(
       invoice_number: data.orderNumber,
       amount: data.amount,
       currency: "IDR",
-      callback_url: (process.env.APP_URL || "https://rawtix.com") + "/order-success?order=" + encodeURIComponent(data.orderNumber),
+      callback_url: (process.env.APP_URL || "https://rawtix.id") + "/order-success?order=" + encodeURIComponent(data.orderNumber),
       line_items: data.items.map((it) => ({
         name: it.name.slice(0, 50),
         price: it.price,
@@ -98,7 +98,7 @@ export async function createDokuCheckoutPayment(
       id: `CUST-${data.email.replace(/[^a-zA-Z0-9]/g, "")}`.slice(0, 30),
       name: data.customerName.slice(0, 50),
       email: data.email,
-      phone: data.phone,
+      phone: data.phone.replace(/[^0-9]/g, ""),
     },
   };
 
