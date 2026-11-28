@@ -71,6 +71,7 @@ export const createOrder = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => orderInputSchema.parse(input))
   .handler(async ({ data }) => {
     const client = getAnonClient();
+    const service = getServiceClient();
     const orderNumber = generateOrderNumber();
     const subtotal = data.items.reduce(
       (sum, item) => sum + item.price * item.quantity,
@@ -81,34 +82,41 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-    const dokuClientId = process.env.DOKU_CLIENT_ID;
-    if (!dokuClientId) {
-      console.error("[DOKU] DOKU_CLIENT_ID is not configured");
-      throw new Error("Layanan pembayaran sedang tidak tersedia. Silakan coba lagi nanti.");
-    }
+    const paymentMode = process.env.PAYMENT_MODE || "direct_doku";
+    let dokuPaymentUrl: string | null = null;
 
-    const dokuItems = data.items.map((item) => ({
-      name: item.name.slice(0, 50),
-      price: item.price,
-      quantity: item.quantity,
-    })).concat([{
-      name: `Ongkir - ${(data.shippingMethodName || "Reguler").slice(0, 40)}`,
-      price: shippingCost,
-      quantity: 1,
-    }]);
+    if (paymentMode === "doku_gateway") {
+      const dokuClientId = process.env.DOKU_CLIENT_ID;
+      if (!dokuClientId) {
+        console.error("[DOKU] DOKU_CLIENT_ID is not configured");
+        throw new Error("Layanan pembayaran sedang tidak tersedia. Silakan coba lagi nanti.");
+      }
 
-    const dokuResult = await createDokuCheckoutPayment({
-      orderNumber,
-      amount: total,
-      customerName: data.customerName,
-      email: data.email,
-      phone: data.phone,
-      items: dokuItems,
-    });
+      const dokuItems = data.items.map((item) => ({
+        name: item.name.slice(0, 50),
+        price: item.price,
+        quantity: item.quantity,
+      })).concat([{
+        name: `Ongkir - ${(data.shippingMethodName || "Reguler").slice(0, 40)}`,
+        price: shippingCost,
+        quantity: 1,
+      }]);
 
-    if (!dokuResult.paymentUrl) {
-      console.error("[DOKU] Checkout payment URL was not returned", dokuResult.rawResponse);
-      throw new Error("Pembayaran tidak dapat diproses saat ini. Pesanan belum dibuat; silakan coba lagi atau hubungi WhatsApp RAWTIX.");
+      const dokuResult = await createDokuCheckoutPayment({
+        orderNumber,
+        amount: total,
+        customerName: data.customerName,
+        email: data.email,
+        phone: data.phone,
+        items: dokuItems,
+      });
+
+      if (!dokuResult.paymentUrl) {
+        console.error("[DOKU] Checkout payment URL was not returned", dokuResult.rawResponse);
+        throw new Error("Pembayaran tidak dapat diproses saat ini. Pesanan belum dibuat; silakan coba lagi atau hubungi WhatsApp RAWTIX.");
+      }
+
+      dokuPaymentUrl = dokuResult.paymentUrl;
     }
 
     const itemsJsonb = data.items.map((item) => ({
@@ -150,12 +158,11 @@ export const createOrder = createServerFn({ method: "POST" })
     // Stock is decremented only after payment is confirmed. Pending, failed,
     // expired, cancelled, or abandoned orders must never reduce inventory.
 
-    const service = getServiceClient();
     if (service) {
       await service
         .from("orders")
         .update({
-          payment_reference: dokuResult.paymentUrl,
+          payment_reference: dokuPaymentUrl || "doku_direct",
           payment_method: "doku",
         })
         .eq("order_number", orderNumber);
@@ -166,31 +173,86 @@ export const createOrder = createServerFn({ method: "POST" })
       orderId: orderResult?.id,
       total,
       snapToken: null,
-      redirectUrl: dokuResult.paymentUrl,
+      redirectUrl: dokuPaymentUrl,
     };
   });
 
 const paymentProofSchema = z.object({
   orderNumber: z.string().min(1).max(50),
-  proofUrl: z.string().url().max(2000),
+  proofUrl: z.string().max(2000).optional(),
+  fileBase64: z.string().optional(),
+  fileName: z.string().max(255).optional(),
+  contentType: z.string().max(100).optional(),
 });
 
 export const submitPaymentProof = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => paymentProofSchema.parse(input))
   .handler(async ({ data }) => {
     const client = getAnonClient();
+    const service = getServiceClient();
+
+    let finalProofUrl = data.proofUrl;
+
+    if (data.fileBase64) {
+      if (!service) {
+        throw new Error("Layanan penyimpanan belum terkonfigurasi di server.");
+      }
+      const rawBase64 = data.fileBase64.replace(/^data:[^;]+;base64,/, "");
+      const buffer = Buffer.from(rawBase64, "base64");
+      const ext = (data.fileName?.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const storagePath = `${data.orderNumber}-${Date.now()}.${ext}`;
+      const contentType = data.contentType || (ext === "png" ? "image/png" : "image/jpeg");
+
+      const { error: uploadError } = await service.storage
+        .from("payment-proofs")
+        .upload(storagePath, buffer, {
+          contentType,
+          upsert: true,
+        });
+
+      if (uploadError) {
+        console.error("Storage upload error:", uploadError);
+        throw new Error("Gagal mengunggah file bukti pembayaran: " + uploadError.message);
+      }
+
+      // Generate signed URL valid for 1 year
+      const { data: signedData, error: signError } = await service.storage
+        .from("payment-proofs")
+        .createSignedUrl(storagePath, 60 * 60 * 24 * 365);
+
+      if (signError || !signedData?.signedUrl) {
+        const { data: pubData } = service.storage.from("payment-proofs").getPublicUrl(storagePath);
+        finalProofUrl = pubData.publicUrl;
+      } else {
+        finalProofUrl = signedData.signedUrl;
+      }
+    }
+
+    if (!finalProofUrl) {
+      throw new Error("Bukti pembayaran harus dilampirkan.");
+    }
 
     const { data: success, error } = await client.rpc("submit_order_payment_proof" as never, {
       p_order_number: data.orderNumber,
-      p_proof_url: data.proofUrl,
+      p_proof_url: finalProofUrl,
     } as never);
 
     if (error || !success) {
       console.error("Payment proof error:", error);
-      throw new Error("Gagal menyimpan bukti pembayaran. Silakan coba lagi.");
+      throw new Error("Gagal menyimpan bukti pembayaran. Pastikan pesanan berstatus menunggu pembayaran.");
     }
 
-    return { success: true };
+    if (service) {
+      await service
+        .from("orders")
+        .update({
+          payment_method: "doku",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("order_number", data.orderNumber);
+    }
+
+    return { success: true, proofUrl: finalProofUrl };
   });
 
 const orderNumberSchema = z.object({
@@ -252,40 +314,49 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
           .maybeSingle();
 
         // --- DOKU: payment_reference is the DOKU Checkout URL or payment_method is doku ---
+        const isDokuGateway =
+          Boolean(dbOrder?.payment_reference && dbOrder.payment_reference.startsWith("http") && dbOrder.payment_reference.includes("doku.com"));
+
         const isDokuPayment =
           dbOrder?.payment_method === "doku" ||
-          (dbOrder?.payment_reference && dbOrder.payment_reference.includes("doku.com"));
+          isDokuGateway ||
+          dbOrder?.payment_reference === "doku_direct";
 
         if (isDokuPayment) {
-          const dokuPaymentUrl =
-            dbOrder?.payment_reference && dbOrder.payment_reference.startsWith("http")
-              ? dbOrder.payment_reference
-              : null;
+          const dokuPaymentUrl = isDokuGateway ? dbOrder.payment_reference : null;
 
           let dbStatus = (dbOrder?.status || orderData.status || "pending") as "pending" | "paid" | "cancelled";
           const createdAt = orderData.created_at || new Date().toISOString();
           const expiryInfo = calculateDokuExpiry(createdAt, 60);
 
           let dokuTxStatus = dbStatus === "paid" ? "SUCCESS" : dbStatus === "cancelled" ? "EXPIRED" : "PENDING";
-          let dokuChannel = "doku";
+          let dokuChannel = isDokuGateway ? "doku" : "doku_direct";
 
           // If pending, perform real-time verification and check expiry
           if (dbStatus === "pending") {
-            const dokuResult = await checkDokuOrderStatus(data.orderNumber);
+            if (isDokuGateway) {
+              const dokuResult = await checkDokuOrderStatus(data.orderNumber);
 
-            if (dokuResult.transactionStatus !== "UNKNOWN") {
-              dokuTxStatus = dokuResult.transactionStatus;
-              if (dokuResult.paymentType) dokuChannel = dokuResult.paymentType;
-            }
+              if (dokuResult.transactionStatus !== "UNKNOWN") {
+                dokuTxStatus = dokuResult.transactionStatus;
+                if (dokuResult.paymentType) dokuChannel = dokuResult.paymentType;
+              }
 
-            if (dokuResult.effectiveStatus === "paid") {
-              dbStatus = "paid";
-            } else if (dokuResult.effectiveStatus === "cancelled") {
-              dbStatus = "cancelled";
-            } else if (expiryInfo.isExpired) {
-              // Expiry fallback: payment due date (60 mins) has elapsed without confirmation
-              dbStatus = "cancelled";
-              dokuTxStatus = "EXPIRED";
+              if (dokuResult.effectiveStatus === "paid") {
+                dbStatus = "paid";
+              } else if (dokuResult.effectiveStatus === "cancelled") {
+                dbStatus = "cancelled";
+              } else if (expiryInfo.isExpired) {
+                // Expiry fallback: payment due date (60 mins) has elapsed without confirmation
+                dbStatus = "cancelled";
+                dokuTxStatus = "EXPIRED";
+              }
+            } else {
+              // Direct DOKU: check expiry only if payment proof is not yet submitted
+              if (expiryInfo.isExpired && !dbOrder?.payment_proof_url) {
+                dbStatus = "cancelled";
+                dokuTxStatus = "EXPIRED";
+              }
             }
 
             // Sync with Supabase if status changed
@@ -378,8 +449,8 @@ export const getOrderByNumber = createServerFn({ method: "POST" })
             qr_string: null,
             expiry_time: expiryInfo.expiryIso,
             snap_token: null,
-            payment_proof_url: dokuPaymentUrl,
-            payment_proof_submitted_at: orderData.payment_proof_submitted_at,
+            payment_proof_url: dbOrder?.payment_proof_url || dokuPaymentUrl,
+            payment_proof_submitted_at: dbOrder?.payment_proof_submitted_at || orderData.payment_proof_submitted_at,
             created_at: orderData.created_at,
             items: orderData.items || [],
           };
