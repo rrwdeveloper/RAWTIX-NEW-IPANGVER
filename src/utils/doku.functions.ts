@@ -95,10 +95,17 @@ export async function createDokuCheckoutPayment(
       payment_due_date: 60, // 60 menit expired
     },
     customer: {
-      id: `CUST-${data.email.replace(/[^a-zA-Z0-9]/g, "")}`.slice(0, 30),
       name: data.customerName.slice(0, 50),
       email: data.email,
-      phone: data.phone.replace(/[^0-9]/g, ""),
+      phone: (() => {
+        let p = data.phone.replace(/[^0-9]/g, "");
+        if (p.startsWith("0")) {
+          p = "62" + p.slice(1);
+        } else if (!p.startsWith("62")) {
+          p = "62" + p;
+        }
+        return p;
+      })(),
     },
   };
 
