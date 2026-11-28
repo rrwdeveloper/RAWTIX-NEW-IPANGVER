@@ -82,7 +82,7 @@ export const createOrder = createServerFn({ method: "POST" })
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-    const paymentMode = process.env.PAYMENT_MODE || "direct_doku";
+    const paymentMode = process.env.PAYMENT_MODE || "doku_gateway";
     let dokuPaymentUrl: string | null = null;
 
     if (paymentMode === "doku_gateway") {
